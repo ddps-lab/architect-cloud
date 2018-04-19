@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kubia-gpu
+spec:
+  nodeSelector:
+    gpu: "true"
+  containers:
+  - image: gcr.io/$PROJECT_ID/kubia:v1
+    name: kubia
+    ports:
+    - containerPort: 8080
+      protocol: TCP
