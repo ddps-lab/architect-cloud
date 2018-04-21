@@ -3,7 +3,7 @@ var path = require("path");
 const lambdaLocal = require('lambda-local');
  
 var jsonPayload = {
-    'name': 'sss',
+    'name': 'kmu',
 }
  
 lambdaLocal.execute({
