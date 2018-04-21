@@ -11,10 +11,8 @@ exports.handler = function(event, context, callback) {
     console.log('logGroupName =', context.logGroupName);
     console.log('logStreamName =', context.logStreamName);
     console.log('clientContext =', context.clientContext);
-    console.log('clientContext =', context.clientContext);  
-    if (typeof event.name === 'undefined') {
-         callback("There is no key named name",null);
-    }
+    console.log('clientContext =', context.clientContext); 
+    
     callback(null, "Hello " + event.name); 
     console.log('end time =', context.getRemainingTimeInMillis());
 };
