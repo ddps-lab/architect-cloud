@@ -1,0 +1,10 @@
+"iam:CreateRole",
+"iam:PutRolePolicy",
+"iam:PassRole",
+"lambda:CreateFunction",
+"lambda:InvokeAsync",
+"lambda:InvokeFunction",
+"lambda:UpdateAlias",
+"lambda:CreateAlias",
+"lambda:GetFunctionConfiguration",
+"lambda:AddPermission"
