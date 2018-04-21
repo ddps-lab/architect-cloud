@@ -8,7 +8,7 @@ var jsonPayload = {
  
 lambdaLocal.execute({
     event: jsonPayload,
-    lambdaPath: path.join(__dirname, '../Simple-Hello.js'),
+    lambdaPath: path.join(__dirname, 'Simple-Hello.js'),
     profilePath: '~/.aws/credentials',
     profileName: 'default',
     timeoutMs: 3000,
