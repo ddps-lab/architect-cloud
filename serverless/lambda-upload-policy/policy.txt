@@ -7,7 +7,8 @@
             "Action": [
                 "lambda:GetFunction",
                 "lambda:UpdateFunctionCode",
-                "lambda:UpdateFunctionConfiguration"
+                "lambda:UpdateFunctionConfiguration",
+                "lambda:CreateFunction"
             ],
             "Resource": [
                 "arn:aws:lambda:*"
