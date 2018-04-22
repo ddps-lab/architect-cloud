@@ -1,0 +1,5 @@
+{
+     #if( $input.params('name').toString() != "" ) 
+        "name" : $input.params('name') 
+     #end
+}
