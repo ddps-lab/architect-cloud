@@ -1,4 +1,4 @@
-apiVersion: v2
+apiVersion: extensions/v1beta1
 kind: ReplicaSet
 metadata:
   name: web2
