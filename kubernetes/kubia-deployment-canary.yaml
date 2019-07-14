@@ -1,0 +1,19 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kubia-canary
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kubia
+        Track: canary
+    spec:
+      containers:
+      - name: kubia
+        image: gcr.io/google-samples/hello-app:2.0
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+
