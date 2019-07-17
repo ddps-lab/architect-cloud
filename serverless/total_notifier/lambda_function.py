@@ -22,7 +22,7 @@ def lambda_handler(event, context):
     # For each transaction added, calculate the new Transactions Total
     for record in event['Records']:
         print(record)
-	try:
+        try:
             customerId = record['dynamodb']['NewImage']['CustomerId']['S']
             transactionAmount = int(record['dynamodb']['NewImage']['TransactionAmount']['N'])
 
