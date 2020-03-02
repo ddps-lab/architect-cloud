@@ -1,0 +1,29 @@
+apiVersion: apps/v1beta2
+kind: ReplicaSet
+metadata:
+  name: kubia
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kubia
+    matchExpressions:
+    - {key: env, operator: In, values: [development]}
+    - {key: release, operator: NotIn, values: [canary]}
+    - {key: version, operator: Exists}
+    - {key: test, operator: DoesNotExist}
+  template:
+    metadata:
+      labels:
+        app: kubia
+        env: development
+        release : stable
+        version: "1.0"
+    spec:
+      containers:
+      - name: kubia
+        image: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/kubia:v1
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+
