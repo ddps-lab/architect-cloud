@@ -6,7 +6,7 @@ spec:
   nodeSelector:
     gpu: "true"
   containers:
-  - image: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/kubia:v1
+  - image: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/kubia
     name: kubia
     ports:
     - containerPort: 8080

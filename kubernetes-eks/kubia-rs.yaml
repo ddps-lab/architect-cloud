@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: kubia
-        image: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/kubia:v1
+        image: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/kubia
         ports:
         - containerPort: 8080
           protocol: TCP
