@@ -22,7 +22,7 @@ def lambda_handler(event, context):
 
     # Get the bucket and object key from the Event
     bucket = event['Records'][0]['s3']['bucket']['name']
-    key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key']).decode('utf8')
+    key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'])
     localFilename = '/tmp/transactions.txt'
 
     # Download the file from S3 to the local filesystem
@@ -70,3 +70,4 @@ def lambda_handler(event, context):
 
     # Finished!
     return "%d transactions inserted" % rowCount
+
