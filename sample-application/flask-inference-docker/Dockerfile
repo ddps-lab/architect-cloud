@@ -10,7 +10,7 @@ WORKDIR architect-cloud/sample-application/flask-inference/
 
 RUN mkdir -p static/uploads
 
-RUN pip3 install --upgrade --ignore-installed pip setuptools
+RUN pip3 install --upgrade pip
 RUN pip3 install -r requirements.txt
 
 CMD ["python3", "main.py"]
