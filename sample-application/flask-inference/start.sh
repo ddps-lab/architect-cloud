@@ -5,8 +5,8 @@ sudo yum install python3-pip -y
 pip3 install virtualenv
 
 cd /home/ec2-user/
-git clone https://github.com/unhochoi/flask-web-application-in-ec2.git
-cd flask-web-application-in-ec2
+git clone https://github.com/kmu-bigdata/architect-cloud.git
+cd architect-cloud/sample-application/flask-inference/
 mkdir -p static/uploads
 
 virtualenv venv
