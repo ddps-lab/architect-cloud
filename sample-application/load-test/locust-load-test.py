@@ -1,7 +1,8 @@
 from locust import HttpUser, between, task
 
 class MyWebsiteUser(HttpUser):
-    wait_time = between(0.5, 1)
+    # simulated user wait between a and b seconds after each task between(a, b)
+    wait_time = between(1, 1)
 
     @task
     def load_main(self):
