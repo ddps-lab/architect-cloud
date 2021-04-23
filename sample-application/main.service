@@ -1,0 +1,13 @@
+[Unit]
+Description=myapp
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/home/ec2-user/aws-sample-general-app
+Environment="PATH=/home/ec2-user/aws-sample-general-app/venv/bin"
+ExecStart=/home/ec2-user/aws-sample-general-app/venv/bin/python main.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
