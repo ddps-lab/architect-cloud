@@ -11,8 +11,7 @@ mkdir -p static/uploads
 
 virtualenv venv
 . venv/bin/activate
-sudo -H pip3 install --upgrade --ignore-installed pip setuptools
-sudo pip3 install -r requirements.txt
+pip3 install -r requirements.txt
 
 sudo cp main.service /etc/systemd/system/
 sudo systemctl start main
