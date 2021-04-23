@@ -4,9 +4,9 @@ After=network.target
 
 [Service]
 User=root
-WorkingDirectory=/home/ec2-user/aws-sample-general-app
-Environment="PATH=/home/ec2-user/aws-sample-general-app/venv/bin"
-ExecStart=/home/ec2-user/aws-sample-general-app/venv/bin/python main.py
+WorkingDirectory=/home/ec2-user/architect-cloud/sample-application/flask-inference/
+Environment="PATH=/home/ec2-user/architect-cloud/sample-application/flask-inference/venv/bin"
+ExecStart=/home/ec2-user/architect-cloud/sample-application/flask-inference/venv/bin/python main.py
 Restart=always
 
 [Install]
