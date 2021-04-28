@@ -1,10 +1,9 @@
 FROM amazonlinux:2
 
-RUN \
-yum update -y && \
-yum install git -y && \
-yum install python3-pip -y && \
-pip3 install --upgrade pip
+RUN yum update -y
+RUN yum install git -y
+RUN yum install python3-pip -y
+RUN pip3 install --upgrade pip
 
 WORKDIR /home
 RUN git clone https://github.com/kmu-bigdata/architect-cloud.git
