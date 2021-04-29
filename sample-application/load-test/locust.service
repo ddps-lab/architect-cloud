@@ -5,8 +5,7 @@ After=network.target
 [Service]
 User=root
 WorkingDirectory=/architect-cloud/sample-application/load-test/
-ExecStart=/architect-cloud/sample-application/load_test/locust -f locust-load-test.py
-
+ExecStart=/architect-cloud/sample-application/load-test/locust -f locust-load-test.py
 
 Restart=always
 
