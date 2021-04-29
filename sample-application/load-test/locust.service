@@ -1,11 +1,10 @@
 [Unit]
-Description=myapp
-After=network.target
+Description=Locust Daemon
 
 [Service]
 User=root
 WorkingDirectory=/architect-cloud/sample-application/load-test/
-ExecStart=/architect-cloud/sample-application/load-test/locust -f locust-load-test.py
+ExecStart=/usr/local/bin/locust -f locust-load-test.py
 
 Restart=always
 
