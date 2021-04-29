@@ -6,7 +6,7 @@ sudo yum -y install git
 sudo pip3 install locust
 
 git clone https://github.com/kmu-bigdata/architect-cloud.git
-#cd ./architect-cloud/sample-application/load-test
+cd ./architect-cloud/sample-application/load-test
 #locust -f locust-load-test.py
 
 sudo cp loucst.service /etc/systemd/system/
