@@ -40,13 +40,11 @@ def inference_model(img):
     return result
     
 def lambda_handler(event, context):
-    
     img = event['content']
     img = base64_to_input(img)
     result = inference_model(img)
-    print(result)
     
     return {
         'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
+        'body': json.dumps(f"{result[0][1]}-{result[0][2]}")
     }
