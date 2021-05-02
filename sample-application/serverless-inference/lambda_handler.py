@@ -2,22 +2,29 @@ import json
 import os
 import base64
 import sys
+from io import BytesIO
 
 sys.path.append("/mnt/access")
 import numpy as np
 from PIL import Image
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from requests_toolbelt.multipart import decoder
+
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.models import load_model
 
 model = load_model("/mnt/access/mobilenetv2")
 
-def base64_to_input(img):
-    img = base64.b64decode(img)
-    with open(f'/tmp/temp.jpeg', 'wb') as file:
-        file.write(img)
-    img = load_img(f'/tmp/temp.jpeg', target_size=(224, 224))
-    img = img_to_array(img)
+def multipart_to_input(multipart_data):
+    binary_content = []
+    for part in multipart_data.parts:
+        binary_content.append(part.content)
+
+    img = BytesIO(binary_content[0])
+    img = Image.open(img)
+    img = img.resize((224, 224), Image.ANTIALIAS)
+    img = np.array(img)
+    
+    # 1, 224, 224, 3
     img = img.reshape((1, img.shape[0], img.shape[1], img.shape[2]))
     img = preprocess_input(img)
     return img
@@ -40,11 +47,20 @@ def inference_model(img):
     return result
     
 def lambda_handler(event, context):
-    img = event['content']
-    img = base64_to_input(img)
+    
+    body = event['body-json']
+    body = base64.b64decode(body)
+    
+    boundary = body.split(b'\r\n')[0]
+    boundary = boundary.decode('utf-8')
+    content_type = f"multipart/form-data; boundary={boundary}"
+    
+    multipart_data = decoder.MultipartDecoder(body, content_type)
+    
+    img = multipart_to_input(multipart_data)
     result = inference_model(img)
     
     return {
         'statusCode': 200,
-        'body': json.dumps(f"{result[0][1]}-{result[0][2]}")
+        'body': json.dumps(f"{result[0][1]}-{result[0][2]}-{result[1][1]}-{result[1][2]}-{result[2][1]}-{result[2][2]}-{result[3][1]}-{result[3][2]}-{result[4][1]}-{result[4][2]}")
     }
