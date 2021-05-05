@@ -14,7 +14,7 @@ sudo yum -y install gcc-c++
 sudo yum -y install python3-devel
 
 # install Packages
-pip3.8 install --upgrade --target efs/packages/ numpy
-pip3.8 install --upgrade --target efs/packages/ Pillow
-pip3.8 install --upgrade --target efs/packages/ requests-toolbelt
-pip3.8 install --upgrade --target efs/packages/ tensorflow
+pip3.8 install --upgrade --target /home/ec2-user/mountpoint/efs/packages/ numpy
+pip3.8 install --upgrade --target /home/ec2-user/mountpoint/efs/packages/ Pillow
+pip3.8 install --upgrade --target /home/ec2-user/mountpoint/efs/packages/ requests-toolbelt
+pip3.8 install --upgrade --target /home/ec2-user/mountpoint/efs/packages/ tensorflow
