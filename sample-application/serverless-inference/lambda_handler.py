@@ -4,7 +4,7 @@ import base64
 import sys
 from io import BytesIO
 
-sys.path.append("/mnt/efs")
+sys.path.append("/mnt/efs/packages")
 import numpy as np
 from PIL import Image
 from requests_toolbelt.multipart import decoder
@@ -12,7 +12,7 @@ from requests_toolbelt.multipart import decoder
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.models import load_model
 
-model = load_model("/mnt/efs/mobilenetv2")
+model = load_model("/mnt/efs/packages/mobilenetv2")
 
 def multipart_to_input(multipart_data):
     binary_content = []
@@ -30,7 +30,7 @@ def multipart_to_input(multipart_data):
     return img
 
 def decode_predictions(preds, top=5):
-    with open('/mnt/efs/imagenet_class_index.json') as f:
+    with open('/mnt/efs/packages/imagenet_class_index.json') as f:
         CLASS_INDEX = json.load(f)
     results = []
     for pred in preds:
