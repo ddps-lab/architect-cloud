@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # install python3.8
 sudo yum -y groupinstall "Development Tools"
 sudo yum -y install openssl-devel bzip2-devel libffi-devel
