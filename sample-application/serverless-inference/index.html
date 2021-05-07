@@ -88,7 +88,7 @@
             success:function(data, status){
               var result = data['body'];
               result = result.replace(/['"]+/g, '');
-              result = result.split('-');
+              result = result.split('&');
               $('#top1-label').html(result[0]);
               $('#top1-acc').html(result[1]);
               $('#top2-label').html(result[2]);
@@ -150,7 +150,6 @@
       max-height: 100%;
         height : 200px;
       border : 1px black solid;
-      /* background-image : url('uploads/dogs.jpeg'); */
       background-repeat : no-repeat;
       background-size : contain;
       background-position: center;
