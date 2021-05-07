@@ -62,5 +62,5 @@ def lambda_handler(event, context):
     
     return {
         'statusCode': 200,
-        'body': json.dumps(f"{result[0][1]}-{result[0][2]}-{result[1][1]}-{result[1][2]}-{result[2][1]}-{result[2][2]}-{result[3][1]}-{result[3][2]}-{result[4][1]}-{result[4][2]}")
+        'body': json.dumps(f"{result[0][1]}&{result[0][2]}&{result[1][1]}&{result[1][2]}&{result[2][1]}&{result[2][2]}&{result[3][1]}&{result[3][2]}&{result[4][1]}&{result[4][2]}")
     }
