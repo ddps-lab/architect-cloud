@@ -1,5 +1,6 @@
 
 # QUERY 1
+# user 조회
 SELECT *
 FROM "default"."your-table-name" 
 WHERE 
@@ -9,6 +10,7 @@ LIMIT 10;
 
 
 # QUERY 2
+# 여러 user 조회
 SELECT *
 FROM "default"."your-table-name" 
 WHERE
@@ -20,6 +22,7 @@ LIMIT 10;
 
 
 # QUERY 3
+# 지난 7일간 사용한 user들의 list
 SELECT DISTINCT useridentity.username 
 FROM "default"."your-table-name" 
 WHERE
