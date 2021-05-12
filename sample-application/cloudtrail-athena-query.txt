@@ -1,0 +1,28 @@
+
+# QUERY 1
+SELECT *
+FROM "default"."your-table-name" 
+WHERE 
+	useridentity.username = 'user-name' 
+LIMIT 10;
+
+
+
+# QUERY 2
+SELECT *
+FROM "default"."your-table-name" 
+WHERE
+	useridentity.username = 'user-name' OR 
+	useridentity.username = 'user-name-1' OR 	
+	useridentity.username = 'user-name-2'
+LIMIT 10;
+
+
+
+# QUERY 3
+SELECT DISTINCT useridentity.username 
+FROM "default"."your-table-name" 
+WHERE
+	from_iso8601_timestamp(eventtime) > date_add('day', -7, now())
+LIMIT 10;
+
