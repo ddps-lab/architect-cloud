@@ -31,29 +31,21 @@ def getPrediction(filename):
 
 def get_instance_info():
     try:
-        # instance_ip = requests.get("http://169.254.169.254/latest/meta-data/public-ipv4", timeout=2).text
         instance_id = requests.get("http://169.254.169.254/latest/meta-data/instance-id", timeout=2).text
         instance_type = requests.get("http://169.254.169.254/latest/meta-data/instance-type", timeout=2).text
         avail_zone = requests.get("http://169.254.169.254/latest/meta-data/placement/availability-zone", timeout=2).text
 
-#         geo_info = requests.get('https://freegeoip.app/json')
-#         geo_json = json.loads(geo_info.text)
 
-#         geo_ip = geo_json['ip']
-#         geo_country_name = geo_json['country_name']
-#         geo_region_name = geo_json['region_name']
-#         geo_time_zone = geo_json['time_zone']
-#         geo_lat_lon = f"{geo_json['latitude']} / {geo_json['longitude']}"
-	geo_info = requests.get('http://ipapi.co/json')
+        geo_info = requests.get('http://ipapi.co/json')
         geo_json = json.loads(geo_info.text)
         geo_ip = geo_json['ip']
         geo_country_name = geo_json['country_name']
         geo_region_name = geo_json['region']
         geo_lat_lon = f"{geo_json['latitude']} / {geo_json['longitude']}"
-	
-	geo_info = requests.get('http://ipinfo.io/json')
-	geo_json = json.loads(geo_info.text)
-	geo_time_zone = geo_json['timezone']
+        
+        geo_info = requests.get('http://ipinfo.io/json')
+        geo_json = json.loads(geo_info.text)
+        geo_time_zone = geo_json['timezone']
 
         for info in [geo_ip, instance_id, instance_type, avail_zone,
         geo_country_name, geo_region_name, geo_time_zone, geo_lat_lon]:
