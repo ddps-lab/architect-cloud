@@ -7,7 +7,7 @@ sudo pip3 install locust
 sudo pip3 install Flask==1.1.2
 sudo pip3 install Jinja2==2.11.3
 
-git clone https://github.com/kmu-bigdata/architect-cloud.git
+git clone https://github.com/ddps-lab/architect-cloud.git
 cd ./architect-cloud/sample-application/load-test
 
 sudo cp locust.service /etc/systemd/system/
