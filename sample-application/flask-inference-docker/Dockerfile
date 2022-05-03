@@ -6,7 +6,7 @@ RUN yum install python3-pip -y
 RUN pip3 install --upgrade pip
 
 WORKDIR /home
-RUN git clone https://github.com/kmu-bigdata/architect-cloud.git
+RUN git clone https://github.com/ddps-lab/architect-cloud.git
 WORKDIR architect-cloud/sample-application/flask-inference/
 
 RUN mkdir -p static/uploads
