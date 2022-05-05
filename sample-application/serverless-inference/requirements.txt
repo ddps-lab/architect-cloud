@@ -1,5 +1,6 @@
 Flask
 werkzeug
-numpy
-tensorflow
 pillow
+requests-toolbelt
+numpy==1.19.5
+tensorflow==2.5.0
