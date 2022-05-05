@@ -13,7 +13,7 @@ from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.models import load_model
 
 # model = load_model("/mnt/efs/packages/mobilenetv2")
-model = load_model('/var/task/architect-cloud/sample-application/serverless-inference/model/mobilenetv2')
+model = load_model('/var/task/architect-cloud/sample-application/serverless-inference/model/mobilenet_v2')
 
 def multipart_to_input(multipart_data):
     binary_content = []
