@@ -14,7 +14,7 @@ RUN mkdir -p static/uploads
 RUN pip3 install -r requirements.txt
 
 # Move lambda_function.py from the Git repository to /var/task/ inside the container
-RUN cp lambda_function.py /var/task/
+RUN cp lambda_function_container.py /var/task/
 
-# RUN lambda_function.handler
-CMD ["lambda_function.handler"]
+# RUN lambda_function_container.handler
+CMD ["lambda_function_container.handler"]
