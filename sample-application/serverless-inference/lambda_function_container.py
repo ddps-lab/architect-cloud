@@ -49,7 +49,7 @@ def inference_model(img):
     result = [(img_class, label, str(round(acc * 100, 4)) + '%') for img_class, label, acc in result]
     return result
     
-def lambda_handler(event, context):
+def handler(event, context):
     
     body = event['body-json']
     
