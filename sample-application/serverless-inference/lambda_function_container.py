@@ -52,6 +52,14 @@ def inference_model(img):
 def lambda_handler(event, context):
     
     body = event['body-json']
+    
+    # 람다 생성 확인용 코드
+    if 'test' in body.keys():
+        return {
+           'statusCode': 200,
+           'body' : "함수가 정상적으로 배포 되었습니다."
+        }
+    
     body = base64.b64decode(body)
     
     boundary = body.split(b'\r\n')[0]
