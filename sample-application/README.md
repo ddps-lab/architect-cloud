@@ -95,3 +95,12 @@ docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/flask-inference-image-fo
 # 73
 https://samsung-cloud-architect-2022-05.s3.us-west-2.amazonaws.com/flask-inference-ecs-network-2022-05.yaml
 ```
+
+### 4.CloudArchitectServerless-2022
+```
+# 75
+https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/index.html
+
+# 119
+'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Accept'
+```
