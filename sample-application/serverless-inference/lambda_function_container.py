@@ -54,7 +54,7 @@ def handler(event, context):
     body = event['body-json']
     
     # 람다 생성 확인용 코드
-    if 'test' in body.keys():
+    if body == "test":
         return {
            'statusCode': 200,
            'body' : "함수가 정상적으로 배포 되었습니다."
