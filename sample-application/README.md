@@ -98,9 +98,35 @@ https://samsung-cloud-architect-2022-05.s3.us-west-2.amazonaws.com/flask-inferen
 
 ### 4. CloudArchitectServerless-2022
 ```
+# 73
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicReadGetObject",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::BucketName/*"
+            ]
+        }
+    ]
+}
+
 # 75
 https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/index.html
 
-# 119
+# 93
+{ 	
+"body-json" : “test”
+}
+
+# 116
+multipart/form-data
+
+# 118
 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Accept'
 ```
