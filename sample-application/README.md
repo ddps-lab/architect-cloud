@@ -130,3 +130,38 @@ multipart/form-data
 # 118
 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Accept'
 ```
+
+
+
+### 5.CloudArchitectSecurityWellArchitect-2022
+```
+# 28
+{ ($.eventSource = "s3.amazonaws.com") && (($.eventName = "PutObject") || ($.eventName = "GetObject")) }
+
+# 59
+# QUERY 1 :user 조회
+SELECT * 
+FROM "default"."[your-table-name]" 
+WHERE 	
+    useridentity.username = '[유저명]' 
+LIMIT 10;
+
+#60
+# QUERY 2 : 여러 user 조회
+SELECT * 
+FROM "default"."[your-table-name]" 
+WHERE 	
+    useridentity.username = '[user-name]' OR	
+    useridentity.username = '[user-name-1]' OR 
+    useridentity.username = '[user-name-2]' 
+LIMIT 10;
+
+#61
+# QUERY 3 : 지난 7일간 사용한 user들의 list
+SELECT DISTINCT useridentity.username 
+FROM "default"."[your-table-name]" 
+WHERE 	
+    from_iso8601_timestamp(eventtime) > date_add('day', -7, now()) 
+LIMIT 10;
+
+```
