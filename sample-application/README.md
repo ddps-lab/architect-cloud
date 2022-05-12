@@ -1,5 +1,21 @@
 # 실습 코드 정리
 
+### 2. CloudArchitectHighAvailability-2022
+```
+#116 
+#include https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/load-test/start.sh  
+
+#186
+https://samsung-cloud-architect-2022-05.s3.us-west-2.amazonaws.com/lab-network.yaml  
+
+#199 
+https://samsung-cloud-architect-2022-05.s3.us-west-2.amazonaws.com/lab-application.yaml    
+
+#214
+https://samsung-cloud-architect-2022-05.s3.us-west-2.amazonaws.com/lab-application2.yaml     
+
+```
+
 ### 3. CloudArchitectContainer-2022
 
 ```
