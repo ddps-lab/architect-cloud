@@ -13,7 +13,7 @@ curl http://169.254.169.254/latest/meta-data/instance-id
 curl http://169.254.169.254/latest/meta-data/public-hostname
 curl http://169.254.169.254/latest/meta-data/instance-type
 
-#271
+#250
 #include
 https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/flask-inference/start.sh
 ```
