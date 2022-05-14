@@ -15,6 +15,7 @@ sudo yum -y install python3-devel
 
 # install Packages
 mkdir /home/ec2-user/mountpoint/efs/packages
+pip3.8 install --upgrade pip --user
 pip3.8 install --upgrade --target /home/ec2-user/mountpoint/efs/packages/ numpy
 pip3.8 install --upgrade --target /home/ec2-user/mountpoint/efs/packages/ Pillow
 pip3.8 install --upgrade --target /home/ec2-user/mountpoint/efs/packages/ requests-toolbelt
