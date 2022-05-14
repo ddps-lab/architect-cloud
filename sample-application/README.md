@@ -55,7 +55,9 @@ docker ps
 docker run busybox echo "Hello world"
 
 # 26
-curl -O https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/flask-inference-docker/Dockerfile
+cd /home/ec2-user
+git clone https://github.com/ddps-lab/architect-cloud.git
+cd /home/ec2-user/architect-cloud/sample-application/flask-inference-docker
 cat Dockerfile
 
 # 32
@@ -121,16 +123,15 @@ aws ecr get-login-password --region us-west-2 | docker login --username AWS --pa
 docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/flask-inference-image-for-ecs
 
 # 67
-rm -rf Dockerfile
-curl -O https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/Dockerfile
+cd /home/ec2-user/architect-cloud/sample-application/serverless-inference
 docker build -t flask-inference-image-for-lambda . --no-cache
 
-# 68
+# 70
 docker tag flask-inference-image-for-lambda $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/flask-inference-image-for-lambda
 aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com
 docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/flask-inference-image-for-lambda
 
-# 73
+# 75
 https://samsung-cloud-architect-2022-05.s3.us-west-2.amazonaws.com/flask-inference-ecs-network-2022-05.yaml
 ```
 
