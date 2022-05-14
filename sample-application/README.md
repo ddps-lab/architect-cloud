@@ -4,6 +4,9 @@
 
 ### 1.CloudArchitectBasic-2022
 ```
+#89
+https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/EC2-Admin-group-rule.json 
+
 #112
 curl http://169.254.169.254/latest/meta-data/
 
