@@ -137,10 +137,7 @@ https://samsung-cloud-architect-2022-05.s3.us-west-2.amazonaws.com/flask-inferen
 
 ### 4. CloudArchitectServerless-2022
 ```
-# 72
-https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/index.html
-
-# 73
+# 70 
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -158,19 +155,47 @@ https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-applica
     ]
 }
 
-# 75
+# 72
 https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/index.html
 
-# 93
+#101 
+sudo yum install -y amazon-efs-utils
+mkdir -p /home/ec2-user/mountpoint/efs && cd /home/ec2-user/mountpoint
+ls
+
+#106 
+wget https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/package_install.sh
+chmod +x package_install.sh
+/package_install.sh
+
+#109 
+pip3.8 install tensorflow --user 
+python3.8 ~/architect-cloud/sample-application/serverless-inference/save_mobilenet.py
+wget https://raw.githubusercontent.com/raghakot/keras-vis/master/resources/imagenet_class_index.json
+mv mobilenetv2 imagenet_class_index.json /home/ec2-user/mountpoint/efs/packages
+
+#110 
+ls /home/ec2-user/mountpoint/efs/packages
+
+#129 
+https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/lambda_test.py
+
+#134 
+https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/lambda_function_efs.py
+
+# 156
+multipart/form-data
+
+
+#159 
+'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Accept'
+
+# 188
 { 	
 "body-json" : “test”
 }
 
-# 116
-multipart/form-data
 
-# 118
-'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Accept'
 ```
 
 
