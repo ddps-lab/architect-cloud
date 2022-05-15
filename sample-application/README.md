@@ -122,16 +122,7 @@ aws ecr get-login-password --region us-west-2 | docker login --username AWS --pa
 # 64
 docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/flask-inference-image-for-ecs
 
-# 67
-cd /home/ec2-user/architect-cloud/sample-application/serverless-inference
-docker build -t flask-inference-image-for-lambda . --no-cache
-
-# 70
-docker tag flask-inference-image-for-lambda $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/flask-inference-image-for-lambda
-aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com
-docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/flask-inference-image-for-lambda
-
-# 75
+# 71
 https://samsung-cloud-architect-2022-05.s3.us-west-2.amazonaws.com/flask-inference-ecs-network-2022-05.yaml
 ```
 
@@ -158,39 +149,47 @@ https://samsung-cloud-architect-2022-05.s3.us-west-2.amazonaws.com/flask-inferen
 # 72
 https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/index.html
 
-#101 
+# 101 
 sudo yum install -y amazon-efs-utils
 mkdir -p /home/ec2-user/mountpoint/efs && cd /home/ec2-user/mountpoint
 ls
 
-#106 
+# 106 
 wget https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/package_install.sh
 chmod +x package_install.sh
 /package_install.sh
 
-#109 
+# 109 
 pip3.8 install tensorflow --user 
 python3.8 ~/architect-cloud/sample-application/serverless-inference/save_mobilenet.py
 wget https://raw.githubusercontent.com/raghakot/keras-vis/master/resources/imagenet_class_index.json
 mv mobilenetv2 imagenet_class_index.json /home/ec2-user/mountpoint/efs/packages
 
-#110 
+# 110 
 ls /home/ec2-user/mountpoint/efs/packages
 
-#129 
+# 129 
 https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/lambda_test.py
 
-#134 
+# 134 
 https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/lambda_function_efs.py
 
 # 156
 multipart/form-data
 
-
-#159 
+# 159 
 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Accept'
 
-# 188
+# 176
+cd /home/ec2-user/architect-cloud/sample-application/serverless-inference
+docker build -t flask-inference-image-for-lambda . --no-cache
+
+# 180
+docker tag flask-inference-image-for-lambda $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/flask-inference-image-for-lambda
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com
+docker push $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/flask-inference-image-for-lambda
+
+# 192
 { 	
 "body-json" : “test”
 }
