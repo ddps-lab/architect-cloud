@@ -18,6 +18,7 @@ app.secret_key = "secret key"
 
 inference_model = MobileNetV2()
 
+
 def getPrediction(filename):
     image = load_img('static/uploads/' + filename, target_size=(224, 224))
     image = img_to_array(image)
@@ -29,8 +30,8 @@ def getPrediction(filename):
     result = [(img_class, label, str(round(acc * 100, 4)) + '%') for img_class, label, acc in result]
     return result
 
+
 def get_instance_info():
-    
     try:
         instance_id = requests.get("http://169.254.169.254/latest/meta-data/instance-id", timeout=2).text
         instance_type = requests.get("http://169.254.169.254/latest/meta-data/instance-type", timeout=2).text
@@ -39,32 +40,35 @@ def get_instance_info():
         instance_id = "Error"
         instance_type = "Error"
         avail_zone = "Error"
-    
+
     try:
         geo_info = requests.get('http://ipapi.co/json')
-    	geo_json = json.loads(geo_info.text)
-    	geo_ip = geo_json['ip']
-    	geo_country_name = geo_json['country_name']
-    	geo_region_name = geo_json['region']
-    	geo_lat_lon = f"{geo_json['latitude']} / {geo_json['longitude']}"
+        geo_json = json.loads(geo_info.text)
+        geo_ip = geo_json['ip']
+        geo_country_name = geo_json['country_name']
+        geo_region_name = geo_json['region']
+        geo_lat_lon = f"{geo_json['latitude']} / {geo_json['longitude']}"
     except:
-    	geo_ip = "Error"
-    	geo_country_name = "Error"
-    	geo_region_name = "Error"
-    	geo_lat_lon = "Error"
+        geo_ip = "Error"
+        geo_country_name = "Error"
+        geo_region_name = "Error"
+        geo_lat_lon = "Error"
 
     try:
         geo_info = requests.get('http://ipinfo.io/json')
-    	geo_json = json.loads(geo_info.text)
-    	geo_time_zone = geo_json['timezone']
+        geo_json = json.loads(geo_info.text)
+        geo_time_zone = geo_json['timezone']
     except:
-    	geo_time_zone = "Error"
-    
-    for info in [geo_ip, instance_id, instance_type, avail_zone, geo_country_name, geo_region_name, geo_time_zone, geo_lat_lon]:
-      	flash(info)
+        geo_time_zone = "Error"
+
+    for info in [geo_ip, instance_id, instance_type, avail_zone, geo_country_name, geo_region_name, geo_time_zone,
+                 geo_lat_lon]:
+        flash(info)
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.route('/')
 def index():
@@ -72,6 +76,7 @@ def index():
         flash('')
     get_instance_info()
     return render_template('index.html')
+
 
 @app.route('/', methods=['POST'])
 def submit_file():
@@ -96,9 +101,11 @@ def submit_file():
             # flash('Allowed image types are -> png, jpg, jpeg, gif')
             return redirect(request.url)
 
+
 @app.route('/display/<filename>')
 def display_image(filename):
-	return redirect(url_for('static', filename='uploads/' + filename), code=301)
+    return redirect(url_for('static', filename='uploads/' + filename), code=301)
+
 
 @app.route('/predict', methods=['GET', 'POST'])
 def curl_test():
@@ -120,5 +127,6 @@ def curl_test():
     else:
         return "Not Matched Methods"
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80 ,debug=True)
+    app.run(host='0.0.0.0', port=80, debug=True)
