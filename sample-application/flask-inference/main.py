@@ -30,28 +30,38 @@ def getPrediction(filename):
     return result
 
 def get_instance_info():
-    instance_id = requests.get("http://169.254.169.254/latest/meta-data/instance-id", timeout=2).text
-    instance_type = requests.get("http://169.254.169.254/latest/meta-data/instance-type", timeout=2).text
-    avail_zone = requests.get("http://169.254.169.254/latest/meta-data/placement/availability-zone", timeout=2).text
-		
+    
     try:
-    	geo_info = requests.get('http://ipapi.co/json')
+        instance_id = requests.get("http://169.254.169.254/latest/meta-data/instance-id", timeout=2).text
+        instance_type = requests.get("http://169.254.169.254/latest/meta-data/instance-type", timeout=2).text
+        avail_zone = requests.get("http://169.254.169.254/latest/meta-data/placement/availability-zone", timeout=2).text
+    except:
+        instance_id = "Error"
+        instance_type = "Error"
+        avail_zone = "Error"
+    
+    try:
+        geo_info = requests.get('http://ipapi.co/json')
     	geo_json = json.loads(geo_info.text)
     	geo_ip = geo_json['ip']
     	geo_country_name = geo_json['country_name']
     	geo_region_name = geo_json['region']
     	geo_lat_lon = f"{geo_json['latitude']} / {geo_json['longitude']}"
+    except:
+    	geo_ip = "Error"
+    	geo_country_name = "Error"
+    	geo_region_name = "Error"
+    	geo_lat_lon = "Error"
 
-    	geo_info = requests.get('http://ipinfo.io/json')
+    try:
+        geo_info = requests.get('http://ipinfo.io/json')
     	geo_json = json.loads(geo_info.text)
     	geo_time_zone = geo_json['timezone']
-
-    	for info in [geo_ip, instance_id, instance_type, avail_zone, geo_country_name, geo_region_name, geo_time_zone, geo_lat_lon]:
-      	    flash(info)
-
-    except:			
-        for info in ["Not Found", instance_id, instance_type, avail_zone, "Not Found", "Not Found", "Not Found", "Not Found"]:
-      	    flash(info)
+    except:
+    	geo_time_zone = "Error"
+    
+    for info in [geo_ip, instance_id, instance_type, avail_zone, geo_country_name, geo_region_name, geo_time_zone, geo_lat_lon]:
+      	flash(info)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
