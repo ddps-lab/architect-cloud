@@ -157,7 +157,7 @@ ls
 # 106 
 wget https://raw.githubusercontent.com/ddps-lab/architect-cloud/master/sample-application/serverless-inference/package_install.sh
 chmod +x package_install.sh
-/package_install.sh
+./package_install.sh
 
 # 109 
 pip3.8 install tensorflow --user 
