@@ -54,33 +54,36 @@ async function fetchGeoinfo(ip_address) {
 }
 
 // list all the suppliers
-app.get("/", async (req, res) => {
-	try {
-		const token = await fetchToken(); // 토큰 가져옴
-		// 각 메타데이터 항목에 대한 요청을 비동기적으로 처리
-		const [public_ip, instance_id, instance_type, avail_zone] = await Promise.all([
-			fetchMetadata("public-ipv4", token),
-			fetchMetadata("instance-id", token),
-			fetchMetadata("instance-type", token),
-			fetchMetadata("placement/availability-zone", token),
-		]);
-		const geo_info = await fetchGeoinfo(public_ip);
-		// 모든 메타데이터를 받은 후 응답을 렌더링
-		res.render("home", {
-			public_ip: public_ip,
-			instance_id: instance_id,
-			instance_type: instance_type,
-			avail_zone: avail_zone,
-			geo_country_name: geo_info.country,
-			geo_region_name: geo_info.region,
-			geo_lat_long: geo_info.lat_long,
-			geo_timezone: geo_info.timezone,
-		});
-	} catch (error) {
-		// 에러 처리
-		console.error("Error fetching EC2 metadata:", error);
-		res.render("home", {});
-	}
+// app.get("/", async (req, res) => {
+// 	try {
+// 		const token = await fetchToken(); // 토큰 가져옴
+// 		// 각 메타데이터 항목에 대한 요청을 비동기적으로 처리
+// 		const [public_ip, instance_id, instance_type, avail_zone] = await Promise.all([
+// 			fetchMetadata("public-ipv4", token),
+// 			fetchMetadata("instance-id", token),
+// 			fetchMetadata("instance-type", token),
+// 			fetchMetadata("placement/availability-zone", token),
+// 		]);
+// 		const geo_info = await fetchGeoinfo(public_ip);
+// 		// 모든 메타데이터를 받은 후 응답을 렌더링
+// 		res.render("home", {
+// 			public_ip: public_ip,
+// 			instance_id: instance_id,
+// 			instance_type: instance_type,
+// 			avail_zone: avail_zone,
+// 			geo_country_name: geo_info.country,
+// 			geo_region_name: geo_info.region,
+// 			geo_lat_long: geo_info.lat_long,
+// 			geo_timezone: geo_info.timezone,
+// 		});
+// 	} catch (error) {
+// 		// 에러 처리
+// 		console.error("Error fetching EC2 metadata:", error);
+// 		res.render("home", {});
+// 	}
+// });
+app.get("/", (req, res) => {
+	res.render("home", {});
 });
 
 app.get("/suppliers/", supplier.findAll);
