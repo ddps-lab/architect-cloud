@@ -31,13 +31,29 @@ async function fetchToken() {
 }
 
 // 주어진 메타데이터 경로에서 데이터를 가져오는 함수
-async function fetchMetadata(path, token) {
-	const response = await fetch(`http://169.254.169.254/latest/meta-data/${path}`, {
-		headers: {
-			"X-aws-ec2-metadata-token": token,
-		},
-	});
-	return response.text();
+async function fetchMetadata(path, token, timeout = 5000) {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+	try {
+		const response = await fetch(`http://169.254.169.254/latest/meta-data/${path}`, {
+			headers: {
+				"X-aws-ec2-metadata-token": token,
+			},
+			signal: controller.signal,
+		});
+
+		if (!response.ok) {
+			throw new Error(`Failed to fetch metadata: ${response.statusText}`);
+		}
+
+		return await response.text();
+	} catch (error) {
+		console.error("Error fetching metadata:", error.message);
+		throw error;
+	} finally {
+		clearTimeout(timeoutId);
+	}
 }
 
 // 지리적 정보를 가져오는 함수
@@ -77,9 +93,27 @@ app.get("/", async (req, res) => {
 			geo_timezone: geo_info.timezone,
 		});
 	} catch (error) {
-		// 에러 처리
 		console.error("Error fetching EC2 metadata:", error);
-		res.render("home", {});
+
+		const token = await fetchToken();
+		const [local_ip, instance_id, instance_type, avail_zone] = await Promise.all([
+			fetchMetadata("local-ipv4", token),
+			fetchMetadata("instance-id", token),
+			fetchMetadata("instance-type", token),
+			fetchMetadata("placement/availability-zone", token),
+		]);
+		const geo_info = await fetchGeoinfo(local_ip);
+
+		res.render("home", {
+			public_ip: local_ip,
+			instance_id: instance_id,
+			instance_type: instance_type,
+			avail_zone: avail_zone,
+			geo_country_name: geo_info.country,
+			geo_region_name: geo_info.region,
+			geo_lat_long: geo_info.lat_long,
+			geo_timezone: geo_info.timezone,
+		});
 	}
 });
 
@@ -102,7 +136,7 @@ app.use(function (req, res, next) {
 });
 
 // set port, listen for requests
-const app_port = process.env.APP_PORT || 80;
+const app_port = process.env.APP_PORT || 8080;
 app.listen(app_port, () => {
 	console.log(`Server is running on port ${app_port}.`);
 });
