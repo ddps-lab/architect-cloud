@@ -31,16 +31,12 @@ async function fetchToken() {
 }
 
 // 주어진 메타데이터 경로에서 데이터를 가져오는 함수
-async function fetchMetadata(path, token, timeout = 5000) {
-	const controller = new AbortController();
-	const timeoutId = setTimeout(() => controller.abort(), timeout);
-
+async function fetchMetadata(path, token) {
 	try {
 		const response = await fetch(`http://169.254.169.254/latest/meta-data/${path}`, {
 			headers: {
 				"X-aws-ec2-metadata-token": token,
 			},
-			signal: controller.signal,
 		});
 
 		if (!response.ok) {
@@ -51,8 +47,6 @@ async function fetchMetadata(path, token, timeout = 5000) {
 	} catch (error) {
 		console.error("Error fetching metadata:", error.message);
 		throw error;
-	} finally {
-		clearTimeout(timeoutId);
 	}
 }
 
