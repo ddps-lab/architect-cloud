@@ -7,7 +7,6 @@ const app = express();
 const mustacheExpress = require("mustache-express");
 const favicon = require("serve-favicon");
 const https = require("https");
-const { count } = require("console");
 // parse requests of content-type: application/json
 app.use(bodyParser.json());
 // parse requests of content-type: application/x-www-form-urlencoded
