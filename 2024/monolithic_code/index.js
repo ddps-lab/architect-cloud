@@ -6,7 +6,8 @@ const supplier = require("./app/controller/supplier.controller");
 const app = express();
 const mustacheExpress = require("mustache-express");
 const favicon = require("serve-favicon");
-
+const https = require("https");
+const { count } = require("console");
 // parse requests of content-type: application/json
 app.use(bodyParser.json());
 // parse requests of content-type: application/x-www-form-urlencoded
@@ -56,17 +57,42 @@ async function fetchMetadata(path, token, timeout = 5000) {
 	}
 }
 
-// 지리적 정보를 가져오는 함수
-async function fetchGeoinfo(ip_address) {
-	const response = await fetch(`http://ip-api.com/json/${ip_address}`);
-	const data = await response.json();
+function fetchIpInfo() {
+	return new Promise((resolve, reject) => {
+		const options = {
+			path: "/json/",
+			host: "ipapi.co",
+			port: 443,
+			headers: { "User-Agent": "nodejs-ipapi-v1.02" },
+		};
 
-	return {
-		country: data.country,
-		region: data.regionName,
-		lat_long: `${data.lat}, ${data.lon}`,
-		timezone: data.timezone,
-	};
+		https
+			.get(options, (resp) => {
+				let body = "";
+				resp.on("data", (data) => {
+					body += data;
+				});
+
+				resp.on("end", () => {
+					try {
+						const loc = JSON.parse(body);
+						const result = {
+							ip: loc.ip,
+							country: loc.country_name,
+							region: loc.region,
+							lat_long: `${loc.latitude}, ${loc.longitude}`,
+							timezone: loc.timezone,
+						};
+						resolve(result);
+					} catch (error) {
+						reject(error);
+					}
+				});
+			})
+			.on("error", (error) => {
+				reject(error);
+			});
+	});
 }
 
 // list all the suppliers
@@ -74,46 +100,28 @@ app.get("/", async (req, res) => {
 	try {
 		const token = await fetchToken(); // 토큰 가져옴
 		// 각 메타데이터 항목에 대한 요청을 비동기적으로 처리
-		const [public_ip, instance_id, instance_type, avail_zone] = await Promise.all([
-			fetchMetadata("public-ipv4", token),
+		const [instance_id, instance_type, avail_zone] = await Promise.all([
 			fetchMetadata("instance-id", token),
 			fetchMetadata("instance-type", token),
 			fetchMetadata("placement/availability-zone", token),
 		]);
-		const geo_info = await fetchGeoinfo(public_ip);
+
+		const ipInfo = await fetchIpInfo();
+
 		// 모든 메타데이터를 받은 후 응답을 렌더링
 		res.render("home", {
-			public_ip: public_ip,
+			public_ip: ipInfo.ip,
 			instance_id: instance_id,
 			instance_type: instance_type,
 			avail_zone: avail_zone,
-			geo_country_name: geo_info.country,
-			geo_region_name: geo_info.region,
-			geo_lat_long: geo_info.lat_long,
-			geo_timezone: geo_info.timezone,
+			geo_country_name: ipInfo.country,
+			geo_region_name: ipInfo.region,
+			geo_lat_long: ipInfo.lat_long,
+			geo_timezone: ipInfo.timezone,
 		});
 	} catch (error) {
 		console.error("Error fetching EC2 metadata:", error);
-
-		const token = await fetchToken();
-		const [local_ip, instance_id, instance_type, avail_zone] = await Promise.all([
-			fetchMetadata("local-ipv4", token),
-			fetchMetadata("instance-id", token),
-			fetchMetadata("instance-type", token),
-			fetchMetadata("placement/availability-zone", token),
-		]);
-		const geo_info = await fetchGeoinfo(local_ip);
-
-		res.render("home", {
-			public_ip: local_ip,
-			instance_id: instance_id,
-			instance_type: instance_type,
-			avail_zone: avail_zone,
-			geo_country_name: geo_info.country,
-			geo_region_name: geo_info.region,
-			geo_lat_long: geo_info.lat_long,
-			geo_timezone: geo_info.timezone,
-		});
+		res.status(500).send("Internal Server Error");
 	}
 });
 
