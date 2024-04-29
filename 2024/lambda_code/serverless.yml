@@ -1,0 +1,21 @@
+service: lambda
+frameworkVersion: "3"
+
+provider:
+    name: aws
+    runtime: nodejs20.x
+    timeout: 15
+
+plugins:
+    - serverless-offline
+
+functions:
+    hello:
+        handler: handler.app
+        events:
+            - httpApi:
+                  path: /{proxy+}
+                  method: any
+            - httpApi:
+                  path: /
+                  method: any
