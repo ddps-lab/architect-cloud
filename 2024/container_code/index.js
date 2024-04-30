@@ -118,6 +118,9 @@ app.get("/", async (req, res) => {
 	}
 });
 
+app.get("/health", (req, res) => {
+	res.render("health", {});
+});
 app.get("/suppliers/", supplier.findAll);
 // show the add suppler form
 app.get("/supplier-add", (req, res) => {
@@ -137,7 +140,7 @@ app.use(function (req, res, next) {
 });
 
 // set port, listen for requests
-const app_port = process.env.APP_PORT || 8080;
+const app_port = process.env.APP_PORT || 80;
 app.listen(app_port, () => {
 	console.log(`Server is running on port ${app_port}.`);
 });
