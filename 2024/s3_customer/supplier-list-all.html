@@ -33,7 +33,7 @@
 				</thead>
 				<tbody id="container">
 					<script>
-						fetch("https://f1fhnvvhe8.execute-api.us-east-1.amazonaws.com/api/v1/supplier-list")
+						fetch("https://YOUR_API_URL/api/v1/supplier-list")
 							.then((response) => response.json())
 							.then((data) =>
 								data.data.data.forEach((elem) => {

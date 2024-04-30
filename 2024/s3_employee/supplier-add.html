@@ -47,7 +47,7 @@
 					const formData = new FormData(form);
 					const urlEncodedData = new URLSearchParams(formData).toString();
 
-					fetch("https://f1fhnvvhe8.execute-api.us-east-1.amazonaws.com/api/v1/supplier-add", {
+					fetch("https://YOUR_API_URL/api/v1/supplier-add", {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/x-www-form-urlencoded",
