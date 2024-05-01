@@ -7,7 +7,7 @@
 		{{/errors}}
 	</div>
 	{{#supplier}}
-	<form action="/supplier-update" method="POST">
+	<form action="/admin/supplier-update" method="POST">
 		<input type="hidden" id="id" name="id" value="{{id}}" />
 		{{>supplier-form-fields}}
 		<button type="submit" class="btn btn-primary">Submit</button>
@@ -38,7 +38,7 @@
 				<div class="modal-body">Are you sure you want to delete supplier {{name}}?</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-					<form action="/supplier-remove/{{id}}" method="POST">
+					<form action="/admin/supplier-remove/{{id}}" method="POST">
 						<button type="submit" class="float-right btn btn-danger">Delete this supplier</button>
 					</form>
 				</div>
