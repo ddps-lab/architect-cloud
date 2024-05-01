@@ -118,6 +118,9 @@ app.get("/", async (req, res) => {
 	}
 });
 
+app.get("/health", (req, res) => {
+	res.render("health", {});
+});
 app.get("/suppliers/", supplier.findAll);
 // show the add suppler form
 app.get("/supplier-add", (req, res) => {
