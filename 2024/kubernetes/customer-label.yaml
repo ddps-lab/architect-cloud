@@ -3,8 +3,8 @@ kind: Pod
 metadata:
   name: customer-v2
   labels:
-    creation_method: manual
-    env: prod
+      creation_method: manual
+      env: prod
 spec:
   containers:
   - image: $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/customer
