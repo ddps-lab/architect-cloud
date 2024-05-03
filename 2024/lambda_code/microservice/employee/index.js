@@ -9,20 +9,20 @@ var payload = require("./utils/payload-util");
 
 var indexRouter = require("./routes/index");
 
-var app = express();
+var handler = express();
 
-app.use(logger("dev"));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+handler.use(logger("dev"));
+handler.use(express.json());
+handler.use(express.urlencoded({ extended: true }));
+handler.use(cookieParser());
 
-app.use("/", indexRouter);
+handler.use("/", indexRouter);
 
 // error handler
-app.use(function (err, req, res, next) {
+handler.use(function (err, req, res, next) {
 	// set locals, only providing error in development
 	res.locals.message = err.message;
-	res.locals.error = req.app.get("env") === "development" ? err : {};
+	res.locals.error = req.handler.get("env") === "development" ? err : {};
 
 	// render the error page
 	const status = err.status || 500;
@@ -31,6 +31,6 @@ app.use(function (err, req, res, next) {
 	res.json(payload.error(status, code, err.message));
 });
 
-module.exports.app = serverless(app);
+module.exports.handler = serverless(handler);
 
 ("use strict");
