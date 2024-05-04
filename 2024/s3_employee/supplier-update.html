@@ -23,7 +23,7 @@
 				const dataId = urlParams.get("id");
 				document.getElementById("id").value = dataId;
 
-				fetch(`https://YOUR_API_URL/api/v1/supplier-info?id=${dataId}`)
+				fetch(`YOUR_API_URL/api/v1/supplier-info?id=${dataId}`)
 					.then((response) => response.json())
 					.then((data) => fillForm(data.data.data)); // 가져온 데이터로 폼 채우기
 			});
@@ -71,7 +71,7 @@
 					const formData = new FormData(form);
 					const urlEncodedData = new URLSearchParams(formData).toString();
 
-					fetch("https://YOUR_API_URL/api/v1/supplier-update", {
+					fetch("YOUR_API_URL/api/v1/supplier-update", {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/x-www-form-urlencoded",
@@ -129,7 +129,7 @@
 									// 현재 페이지 URL에서 "id" 매개변수 가져오기
 									const urlParams = new URLSearchParams(window.location.search);
 									const id = urlParams.get("id");
-									fetch(`https://YOUR_API_URL/api/v1/supllier-remove/${id}`, {
+									fetch(`YOUR_API_URL/api/v1/supllier-remove/${id}`, {
 										method: "POST",
 									})
 										.then((response) => {
