@@ -3,20 +3,20 @@ kind: Ingress
 metadata:
     name: coffee-ingress
     annotations:
+        kubernetes.io/ingress.class: alb
         alb.ingress.kubernetes.io/scheme: internet-facing
 spec:
-    ingressClassName: alb
     rules:
         - http:
               paths:
-                  - path: /customer/*
+                  - path: /customer
                     pathType: Prefix
                     backend:
                         service:
                             name: customer
                             port:
                                 number: 8080
-                  - path: /employee/*
+                  - path: /admin
                     pathType: Prefix
                     backend:
                         service:
