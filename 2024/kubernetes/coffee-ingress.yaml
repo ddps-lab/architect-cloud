@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Ingress
+metadata:
+    name: coffee-ingress
+    annotations:
+        kubernetes.is/ingress.class: alb
+        alb.ingress.kubernetes.io/scheme: internet-facing
+spec:
+    rules:
+        - http:
+              paths:
+                  - path: /customer/*
+                    backend:
+                        serviceName: customer
+                        servicePort: 8080
+                  - path: /employee/*
+                    backend:
+                        serviceName: employee
+                        servicePort: 8080
