@@ -1,10 +1,5 @@
 #!/bin/bash
 
-#update apt & install unzip, awscli
-echo "INSTALL awscli"
-sudo apt update
-sudo apt install unzip awscli -y
-
 #install kubectl
 echo "INSTALL kubectl"
 sudo curl --silent --location -o /usr/local/bin/kubectl \
@@ -19,4 +14,4 @@ sudo mv -v /tmp/eksctl /usr/local/bin
 eksctl version
 
 #set $ACCOUNT_ID
-export ACCOUNT_ID=$(aws sts get-caller-identity --output text --query Account)
+echo 'export ACCOUNT_ID=$(aws sts get-caller-identity --output text --query Account)' >> ~/.bashrc
