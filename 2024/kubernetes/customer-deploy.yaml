@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: customer
+spec:
+    replicas: 0
+    selector:
+        matchLabels:
+            app: customer
+    template:
+        metadata:
+            labels:
+                app: customer
+        spec:
+            terminationGracePeriodSeconds: 0
+            containers:
+                - name: customer
+                  image: $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/customer
+                  resources:
+                      requests:
+                          cpu: 1000
+            nodeSelector:
+                karpenter.sh/nodepool: default
