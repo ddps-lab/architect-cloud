@@ -2,7 +2,7 @@
 let config = {
 	APP_DB_HOST: "REPLACE-DB-HOST",
 	APP_DB_USER: "nodeapp",
-	APP_DB_PASSWORD: "coffee",
+	APP_DB_PASSWORD: "lab-password",
 	APP_DB_NAME: "COFFEE",
 };
 
