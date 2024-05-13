@@ -5,12 +5,12 @@ metadata:
 spec:
     selector:
         matchLabels:
-            run: customer-hpa
+            app: customer
     replicas: 1
     template:
         metadata:
             labels:
-                run: customer-hpa
+                app: customer
         spec:
             containers:
                 - name: customer-hpa
