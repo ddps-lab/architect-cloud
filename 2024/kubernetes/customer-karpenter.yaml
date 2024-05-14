@@ -21,7 +21,7 @@ spec:
             nodeClassRef:
                 name: default
     limits:
-        cpu: 500
+        cpu: 500m
     disruption:
         consolidationPolicy: WhenUnderutilized
         expireAfter: 720h # 30 * 24h = 720h
@@ -39,3 +39,5 @@ spec:
     securityGroupSelectorTerms:
         - tags:
               karpenter.sh/discovery: "coffee-supplier" # replace with your cluster name
+    tags:
+        Name: karpenter-customer
