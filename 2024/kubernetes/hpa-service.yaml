@@ -9,4 +9,4 @@ spec:
         name: customer-hpa
     minReplicas: 1
     maxReplicas: 6
-    targetCPUUtilizationPercentage: 50
+    targetCPUUtilizationPercentage: 30
