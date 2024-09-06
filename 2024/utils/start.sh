@@ -24,3 +24,17 @@ export APP_PORT=80
 
 node index.js &
 
+
+cat <<EOF > /etc/rc.local
+#!/bin/bash
+cd /home/ubuntu/architect-cloud/2024/monolithic_code
+TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
+export APP_DB_HOST=$(curl http://169.254.169.254/latest/meta-data/local-ipv4 -H "X-aws-ec2-metadata-token: $TOKEN")
+export APP_DB_USER=nodeapp
+export APP_DB_PASSWORD=coffee
+export APP_DB_NAME=COFFEE
+export APP_PORT=80
+
+node index.js
+EOF
+chmod +x /etc/rc.local
