@@ -3,7 +3,7 @@ apt update -y
 apt install nodejs unzip wget npm mysql-server awscli tree nmap -y
 cd /home/ubuntu
 git clone https://github.com/ddps-lab/architect-cloud.git
-cd /home/ubuntu/architect-cloud/2024
+cd /home/ubuntu/architect-cloud/2025
 chown ubuntu -R monolithic_code/
 cd monolithic_code
 npm install
