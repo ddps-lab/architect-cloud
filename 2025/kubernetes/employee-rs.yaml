@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+    name: employee
+spec:
+    replicas: 2
+    selector:
+        matchLabels:
+            app: employee
+    template:
+        metadata:
+            labels:
+                app: employee
+        spec:
+            containers:
+                - name: employee
+                  image: $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/employee
+                  ports:
+                      - containerPort: 8080
+                        protocol: TCP
