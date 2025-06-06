@@ -1,6 +1,7 @@
 #!/bin/bash -xe
 apt update -y
-apt install nodejs unzip wget npm mysql-server awscli tree nmap -y
+apt install nodejs unzip wget npm mysql-server tree nmap -y
+snap install --classic aws-cli
 cd /home/ubuntu
 git clone https://github.com/ddps-lab/architect-cloud.git
 cd /home/ubuntu/architect-cloud/2025
