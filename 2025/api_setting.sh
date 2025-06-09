@@ -1,7 +1,7 @@
 #!/bin/bash
 
-customer_directory="/home/cloudshell-user/architect-cloud/2024/s3_customer"
-employee_directory="/home/cloudshell-user/architect-cloud/2024/s3_employee"
+customer_directory="/home/cloudshell-user/architect-cloud/2025/s3_customer"
+employee_directory="/home/cloudshell-user/architect-cloud/2025/s3_employee"
 
 echo "Enter the API URL of customer: "
 read customer_api
