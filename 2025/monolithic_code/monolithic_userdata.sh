@@ -1,6 +1,4 @@
 #!/bin/bash -xe
-
-exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 apt update -y
 apt install nodejs unzip wget npm mysql-client awscli tree nmap -y
 cd /home/ubuntu
