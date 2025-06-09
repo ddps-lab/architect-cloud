@@ -1,4 +1,6 @@
 #!/bin/bash -xe
+exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+
 apt update -y
 apt install nodejs unzip wget npm mysql-server tree nmap -y
 snap install --classic aws-cli
@@ -8,10 +10,28 @@ cd /home/ubuntu/architect-cloud/2025
 chown ubuntu -R monolithic_code/
 cd monolithic_code
 npm install
-mysql -u root -e "CREATE USER 'nodeapp' IDENTIFIED WITH mysql_native_password BY 'coffee'";
-mysql -u root -e "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, REFERENCES, INDEX, ALTER, SHOW DATABASES, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'nodeapp'@'%' WITH GRANT OPTION;"
-mysql -u root -e "CREATE DATABASE COFFEE;"
-mysql -u root -e "USE COFFEE; CREATE TABLE suppliers(id INT NOT NULL AUTO_INCREMENT,name VARCHAR(255) NOT NULL,address VARCHAR(255) NOT NULL,city VARCHAR(255) NOT NULL,state VARCHAR(255) NOT NULL,email VARCHAR(255) NOT NULL,phone VARCHAR(100) NOT NULL,PRIMARY KEY ( id ));"
+
+mysql -u root -e "
+CREATE USER IF NOT EXISTS 'nodeapp'@'%' IDENTIFIED WITH mysql_native_password BY 'coffee';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, REFERENCES, INDEX, ALTER, SHOW DATABASES,
+      CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW,
+      CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER
+ON *.* TO 'nodeapp'@'%' WITH GRANT OPTION;"
+
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS COFFEE;"
+
+mysql -u root -e "
+USE COFFEE;
+CREATE TABLE IF NOT EXISTS suppliers (
+    id INT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    city VARCHAR(255) NOT NULL,
+    state VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(100) NOT NULL,
+    PRIMARY KEY (id)
+);"
 
 sed -i "s/.*bind-address.*/bind-address = 0.0.0.0/" /etc/mysql/mysql.conf.d/mysqld.cnf
 systemctl enable mysql
