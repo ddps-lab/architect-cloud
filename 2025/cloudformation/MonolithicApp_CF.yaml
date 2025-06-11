@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Samsung Cloud Arch MonolithicApp
+Description: Samsung Cloud Arch MonolithicApp (Standard MySQL)
 
 Parameters:
   MaxECSServiceTasks:
@@ -22,19 +22,6 @@ Parameters:
     MinValue: 1
     Default: 2
     Description: The maximum number of ECS Services allowed at a Cluster
-  DBMultiAZ:
-    AllowedValues:
-      - "true"
-      - "false"
-    Default: "true"
-    Description:
-      Specifies if the database instance is a multiple Availability Zone
-      deployment.
-    Type: String
-Conditions:
-  CreateReadReplica: !Equals
-    - !Ref "DBMultiAZ"
-    - "true"
 
 Mappings:
   RegionMap:
@@ -44,19 +31,20 @@ Mappings:
       "Ubuntu24": ami-0a605bc2ef5707a18
 
 Resources:
+  # IAM Roles for CI/CD
   PipelineRole:
-    Type: "AWS::IAM::Role"
+    Type: AWS::IAM::Role
     Properties:
       RoleName: PipelineRole
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-        - "arn:aws:iam::aws:policy/AWSCodeCommitFullAccess"
-        - "arn:aws:iam::aws:policy/AWSCodeDeployDeployerAccess"
-        - "arn:aws:iam::aws:policy/CloudWatchEventsReadOnlyAccess"
-        - "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AWSCodeCommitFullAccess
+        - arn:aws:iam::aws:policy/AWSCodeDeployDeployerAccess
+        - arn:aws:iam::aws:policy/CloudWatchEventsReadOnlyAccess
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
           - Effect: Allow
             Principal:
@@ -64,54 +52,45 @@ Resources:
                 - codepipeline.amazonaws.com
                 - ecs-tasks.amazonaws.com
             Action:
-              - "sts:AssumeRole"
+              - sts:AssumeRole
 
   PipelineRolePolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      Description: String
+      Description: ECS task definition management
       Roles:
         - !Ref PipelineRole
       PolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
-          [
-            {
-              "Effect": "Allow",
-              "Action":
-                [
-                  "ecs:RegisterTaskDefinition",
-                  "ecs:ListTaskDefinitions",
-                  "ecs:DescribeTaskDefinition",
-                ],
-              "Resource": ["*"],
-            },
-            {
-              "Effect": "Allow",
-              "Action": ["iam:PassRole"],
-              "Resource": ["arn:aws:iam::*:role/PipelineRole"],
-            },
-          ]
+          - Effect: Allow
+            Action:
+              - ecs:RegisterTaskDefinition
+              - ecs:ListTaskDefinitions
+              - ecs:DescribeTaskDefinition
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource: arn:aws:iam::*:role/PipelineRole
 
   DeployRole:
-    Type: "AWS::IAM::Role"
+    Type: AWS::IAM::Role
     Properties:
       RoleName: DeployRole
       ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
+        - arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
           - Effect: Allow
             Principal:
               Service:
                 - codedeploy.amazonaws.com
             Action:
-              - "sts:AssumeRole"
+              - sts:AssumeRole
 
-  ###############
-  # VPC with IGW
-  ###############
+  # VPC and Networking
   LabVPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -124,7 +103,6 @@ Resources:
 
   IGW:
     Type: AWS::EC2::InternetGateway
-    DependsOn: LabVPC
     Properties:
       Tags:
         - Key: Name
@@ -132,31 +110,22 @@ Resources:
 
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
-    DependsOn:
-      - LabVPC
-      - IGW
     Properties:
       VpcId: !Ref LabVPC
       InternetGatewayId: !Ref IGW
 
-  ###########
-  # Public Subnets
-  ###########
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref LabVPC
-      AvailabilityZone:
-        Fn::Select:
-          - 0
-          - Fn::GetAZs: ""
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
       CidrBlock: 10.16.10.0/24
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: Public Subnet 1
         - Key: kubernetes.io/role/elb
-          Value: 1
+          Value: '1'
         - Key: karpenter.sh/discovery
           Value: coffee-supplier
 
@@ -164,28 +133,19 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref LabVPC
-      AvailabilityZone:
-        Fn::Select:
-          - 1
-          - Fn::GetAZs: ""
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
       CidrBlock: 10.16.20.0/24
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: Public Subnet 2
         - Key: kubernetes.io/role/elb
-          Value: 1
+          Value: '1'
         - Key: karpenter.sh/discovery
           Value: coffee-supplier
 
-  ###########
-  # Public Routing
-  ###########
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
-    DependsOn:
-      - LabVPC
-      - AttachGateway
     Properties:
       VpcId: !Ref LabVPC
       Tags:
@@ -194,69 +154,45 @@ Resources:
 
   PublicRoute:
     Type: AWS::EC2::Route
-    DependsOn:
-      - PublicRouteTable
-      - AttachGateway
     Properties:
+      RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref IGW
-      RouteTableId: !Ref PublicRouteTable
 
   PublicSubnetRouteAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    DependsOn:
-      - PublicRouteTable
-      - PublicSubnet1
     Properties:
-      RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
 
   PublicSubnetRouteAssociation2:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    DependsOn:
-      - PublicRouteTable
-      - PublicSubnet2
     Properties:
-      RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
 
-  ###########
-  # Private Subnets
-  ###########
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
-    DependsOn: LabVPC
     Properties:
       VpcId: !Ref LabVPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
       CidrBlock: 10.16.30.0/24
-      AvailabilityZone: !Select
-        - 0
-        - !GetAZs
-          Ref: AWS::Region
       Tags:
         - Key: Name
           Value: Private Subnet 1
 
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
-    DependsOn: LabVPC
     Properties:
       VpcId: !Ref LabVPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
       CidrBlock: 10.16.40.0/24
-      AvailabilityZone: !Select
-        - 1
-        - !GetAZs
-          Ref: AWS::Region
       Tags:
         - Key: Name
           Value: Private Subnet 2
 
-  ###########
-  # Private Routing
-  ###########
   PrivateRouteTable1:
     Type: AWS::EC2::RouteTable
-    DependsOn: LabVPC
     Properties:
       VpcId: !Ref LabVPC
       Tags:
@@ -265,7 +201,6 @@ Resources:
 
   PrivateRouteTable2:
     Type: AWS::EC2::RouteTable
-    DependsOn: LabVPC
     Properties:
       VpcId: !Ref LabVPC
       Tags:
@@ -274,25 +209,52 @@ Resources:
 
   PrivateRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    DependsOn:
-      - PrivateRouteTable1
-      - PrivateSubnet1
     Properties:
-      RouteTableId: !Ref PrivateRouteTable1
       SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable1
 
   PrivateRouteTableAssociation2:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    DependsOn:
-      - PrivateRouteTable2
-      - PrivateSubnet2
     Properties:
-      RouteTableId: !Ref PrivateRouteTable2
       SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable2
 
-  ###############
-  # Instance, security group, IAM role
-  ###############
+  # EC2 for Monolithic App
+  EC2NodeInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ ec2.amazonaws.com ]
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+  myEc2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: myInstanceProfile
+      Roles:
+        - !Ref EC2NodeInstanceRole
+
+  Ec2AppNodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH
+      VpcId: !Ref LabVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
   Ec2AppNodeLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -300,45 +262,38 @@ Resources:
       LaunchTemplateData:
         IamInstanceProfile:
           Name: !Ref myEc2InstanceProfile
-        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", Ubuntu24]
+        ImageId: !FindInMap [ RegionMap, !Ref AWS::Region, Ubuntu24 ]
         InstanceType: t2.micro
         NetworkInterfaces:
-          - AssociatePublicIpAddress: "true"
-            DeleteOnTermination: "true"
-            DeviceIndex: "0"
+          - AssociatePublicIpAddress: true
+            DeleteOnTermination: true
+            DeviceIndex: 0
             SubnetId: !Ref PublicSubnet1
             Groups:
               - !Ref Ec2AppNodeSecurityGroup
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash -xe
-            exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+            exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
             apt update -y
             snap install aws-cli --classic
             apt install nodejs unzip wget npm mysql-client tree nmap -y
             cd /home/ubuntu
             git clone https://github.com/ddps-lab/architect-cloud.git
-            cd /home/ubuntu/architect-cloud/2025
-            chown ubuntu -R monolithic_code/
-            cd monolithic_code
+            cd architect-cloud/2025/monolithic_code
             npm install
 
-            mysql -u admin -plab-password -h ${AuroraDBPrimaryInstance.Endpoint.Address} -P 3306 -e "CREATE USER 'nodeapp' IDENTIFIED WITH mysql_native_password BY 'coffee'";
-            mysql -u admin -plab-password -h ${AuroraDBPrimaryInstance.Endpoint.Address} -P 3306 -e "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, REFERENCES, INDEX, ALTER, SHOW DATABASES, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'nodeapp'@'%' WITH GRANT OPTION;"
-            mysql -u admin -plab-password -h ${AuroraDBPrimaryInstance.Endpoint.Address} -P 3306 -e "CREATE DATABASE COFFEE;"
-            mysql -u admin -plab-password -h ${AuroraDBPrimaryInstance.Endpoint.Address} -P 3306 -e "USE COFFEE; CREATE TABLE suppliers(id INT NOT NULL AUTO_INCREMENT,name VARCHAR(255) NOT NULL,address VARCHAR(255) NOT NULL,city VARCHAR(255) NOT NULL,state VARCHAR(255) NOT NULL,email VARCHAR(255) NOT NULL,phone VARCHAR(100) NOT NULL,PRIMARY KEY ( id ));"
+            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e "CREATE USER 'nodeapp' IDENTIFIED WITH mysql_native_password BY 'coffee'"
+            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, REFERENCES, INDEX, ALTER, SHOW DATABASES, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'nodeapp'@'%' WITH GRANT OPTION;"
+            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e "CREATE DATABASE COFFEE;"
+            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e "USE COFFEE; CREATE TABLE suppliers(id INT NOT NULL AUTO_INCREMENT, name VARCHAR(255) NOT NULL, address VARCHAR(255) NOT NULL, city VARCHAR(255) NOT NULL, state VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, phone VARCHAR(100) NOT NULL, PRIMARY KEY (id));"
 
-            # sed the config file
-            sed -i "s|REPLACE-DB-HOST|${AuroraDBPrimaryInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/monolithic_code/app/config/config.js
-            sleep 2
-            sed -i "s|REPLACE-DB-HOST|${AuroraDBPrimaryInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/microservice/customer/app/config/config.js
-            sleep 2
-            sed -i "s|REPLACE-DB-HOST|${AuroraDBPrimaryInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/microservice/employee/app/config/config.js
-            sleep 2
-            #start the app
+            sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/monolithic_code/app/config/config.js
+            sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/microservice/customer/app/config/config.js
+            sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/microservice/employee/app/config/config.js
+
             node index.js &
 
-            # ensure app starts at boot for all lab sessions
             cat <<EOF > /etc/rc.local
             #!/bin/bash
             cd /home/ubuntu/architect-cloud/2025/monolithic_code/
@@ -352,7 +307,7 @@ Resources:
     Type: AWS::EC2::Instance
     DependsOn:
       - AttachGateway
-      - AuroraDBPrimaryInstance
+      - MySQLDBInstance
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref Ec2AppNodeLaunchTemplate
@@ -361,92 +316,23 @@ Resources:
         - Key: Name
           Value: MonolithicAppServer
 
-  Ec2AppNodeSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
+  # Database Subnets & Security
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
     Properties:
-      GroupDescription: Enable inbound access via TCP ports 80 and 22
-      VpcId: !Ref LabVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-
-  myEc2InstanceProfile:
-    Type: "AWS::IAM::InstanceProfile"
-    Properties:
-      InstanceProfileName: myInstanceProfile
-      Roles:
-        - !Ref EC2NodeInstanceRole
-
-  EC2NodeInstanceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [ec2.amazonaws.com]
-            Action: ["sts:AssumeRole"]
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AdministratorAccess
-
-  AuroraDBCluster:
-    Type: AWS::RDS::DBCluster
-    Properties:
-      Engine: aurora-mysql
-      EngineVersion: "5.7"
-      BackupRetentionPeriod: "7"
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      MasterUsername: admin
-      MasterUserPassword: lab-password
-      VpcSecurityGroupIds:
-        - !Ref "DBSecurityGroup"
+      DBSubnetGroupDescription: Private DB subnets
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
       Tags:
         - Key: Name
-          Value: supplierDB
-  AuroraDBPrimaryInstance:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      Engine: aurora-mysql
-      EngineVersion: "5.7"
-      DBClusterIdentifier: !Ref "AuroraDBCluster"
-      DBInstanceClass: db.t3.medium
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      AutoMinorVersionUpgrade: "true"
-      Tags:
-        - Key: Name
-          Value: Drupal-Aurora-PrimaryDB
-        - Key: Engineer
-          Value: Roa
-  AuroraDBSecondaryInstance:
-    Type: AWS::RDS::DBInstance
-    Condition: CreateReadReplica
-    DependsOn: AuroraDBPrimaryInstance
-    Properties:
-      Engine: aurora-mysql
-      EngineVersion: "5.7"
-      DBClusterIdentifier: !Ref "AuroraDBCluster"
-      DBInstanceClass: db.t3.medium
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      AutoMinorVersionUpgrade: "true"
-      Tags:
-        - Key: Name
-          Value: Drupal-Aurora-SecondaryDB
-        - Key: Engineer
-          Value: Roa
-  #####
+          Value: DBSubnetGroup
+
   DBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
-    DependsOn: LabVPC
     Properties:
       GroupName: DBSecurityGroup
-      GroupDescription: Enable access to MySQL on RDS
+      GroupDescription: Enable MySQL access
       VpcId: !Ref LabVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -457,20 +343,32 @@ Resources:
         - Key: Name
           Value: DBSecurityGroup
 
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
+  # Standard MySQL Instance
+  MySQLDBInstance:
+    Type: AWS::RDS::DBInstance
     Properties:
-      DBSubnetGroupDescription: "DBSubnetGroup"
-      SubnetIds:
-        - !Ref PrivateSubnet2
-        - !Ref PrivateSubnet1
+      DBInstanceIdentifier: monolithic-mysql
+      Engine: mysql
+      EngineVersion: "8.0.32"
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: "20"
+      StorageType: gp2
+      MultiAZ: false
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      MasterUsername: admin
+      MasterUserPassword: lab-password
+      BackupRetentionPeriod: 7
+      AutoMinorVersionUpgrade: true
       Tags:
         - Key: Name
-          Value: DBSubnetGroup
+          Value: MonolithicMySQL
 
 Outputs:
-  #this might be needed to avoid errors in userdata above
-  RDSEndpoint:
-    Value: !GetAtt [AuroraDBPrimaryInstance, Endpoint.Address]
+  MySQLEndpoint:
+    Description: Endpoint of the MySQL instance
+    Value: !GetAtt [ MySQLDBInstance, Endpoint.Address ]
     Export:
-      Name: AuroraDBPrimaryInstance
+      Name: MonolithicMySQLEndpoint
