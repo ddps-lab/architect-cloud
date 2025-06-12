@@ -5,13 +5,23 @@ set -e
 # 고정값
 CLUSTER_NAME="coffee-supplier"
 REGION="us-west-2"
+VPC_NAME="LabVPC"
 
-# 사용자로부터 VPC ID만 입력받음
-VPC_ID=$1
-if [[ -z "$VPC_ID" ]]; then
-  echo "Usage: $0 <vpc-id>"
+echo "🔍 Searching for VPC with Name tag: $VPC_NAME in region: $REGION..."
+
+# VPC ID 자동 검색 (태그 Name이 LabVPC인 경우)
+VPC_ID=$(aws ec2 describe-vpcs \
+  --region "$REGION" \
+  --filters "Name=tag:Name,Values=$VPC_NAME" \
+  --query "Vpcs[0].VpcId" \
+  --output text)
+
+if [[ "$VPC_ID" == "None" || -z "$VPC_ID" ]]; then
+  echo "❌ VPC named '$VPC_NAME' not found in region $REGION."
   exit 1
 fi
+
+echo "✅ Found VPC ID: $VPC_ID"
 
 echo "Fetching subnets for VPC: $VPC_ID in region: $REGION..."
 
