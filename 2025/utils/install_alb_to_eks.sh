@@ -36,6 +36,7 @@ eksctl create iamserviceaccount \
     --namespace=kube-system \
     --name=aws-load-balancer-controller \
     --attach-policy-arn=arn:aws:iam::"$ACCOUNT_ID":policy/AWSLoadBalancerControllerIAMPolicy \
+    --override-existing-serviceaccounts \
     --region "$REGION" \
     --approve
 echo "✅ ALB IAM Service Account 생성 완료"
