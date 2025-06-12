@@ -44,7 +44,7 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   -n kube-system \
   --set clusterName="$CLUSTER_NAME" \
   --set serviceAccount.create=false \
-  --set serviceAccount.name=aws-load-balancer-controller \
+  --set serviceAccount.name=aws-load-balancer-controller
 echo "✅ ALB Controller 설치 완료"
 
 echo "🔍 설치된 컨트롤러 확인 중..."
