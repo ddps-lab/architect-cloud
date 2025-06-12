@@ -4,7 +4,7 @@ set -e
 
 # 고정값
 CLUSTER_NAME="coffee-supplier"
-CLUSTER_VERSION=1.33
+CLUSTER_VERSION='1.33'
 REGION="us-west-2"
 VPC_NAME="LabVPC"
 
