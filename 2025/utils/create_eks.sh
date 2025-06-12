@@ -4,8 +4,10 @@ set -e
 
 # 고정값
 CLUSTER_NAME="coffee-supplier"
+CLUSTER_VERSION="1.33"
 REGION="us-west-2"
 VPC_NAME="LabVPC"
+
 
 echo "🔍 Searching for VPC with Name tag: $VPC_NAME in region: $REGION..."
 
@@ -57,7 +59,11 @@ kind: ClusterConfig
 metadata:
   name: $CLUSTER_NAME
   region: $REGION
-
+  version: $CLUSTER_VERSION
+  tags:
+    karpenter.sh/discovery: $CLUSTER_NAME
+iam:
+  withOIDC: true
 vpc:
   id: $VPC_ID
   subnets:
@@ -80,21 +86,18 @@ done
 cat >> $CONFIG_FILE <<EOF
 
 nodeGroups:
-  - name: ng-1
-    instanceType: t3.medium
-    desiredCapacity: 2
-    minSize: 1
-    maxSize: 3
-    privateNetworking: true
+  - name: coffee-supplier-node-group
+    instanceType: t3.small
+    desiredCapacity: 3
+    minSize: 3
+    maxSize: 6
+    privateNetworking: false
     ssh:
       allow: true
 EOF
 
 echo "✅ YAML config generated: $CONFIG_FILE"
 
-# eksctl 실행 여부 확인
-read -p "▶️  Do you want to create the EKS cluster now using eksctl? (y/N): " yn
-case $yn in
-    [Yy]* ) eksctl create cluster -f $CONFIG_FILE;;
-    * ) echo "EKS creation skipped. You can run: eksctl create cluster -f $CONFIG_FILE";;
-esac
+# eksctl 실행 안내
+echo "▶️  EKS 클러스터를 생성하려면 다음 명령어를 실행하세요:"
+echo "eksctl create cluster -f $CONFIG_FILE"
