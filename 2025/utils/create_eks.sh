@@ -5,6 +5,7 @@ set -e
 # 고정값
 CLUSTER_NAME="coffee-supplier"
 CLUSTER_VERSION='1.33'
+KARPENTER_VERSION='1.5.0'
 REGION="us-west-2"
 VPC_NAME="LabVPC"
 
@@ -64,6 +65,10 @@ metadata:
     karpenter.sh/discovery: $CLUSTER_NAME
 iam:
   withOIDC: true
+karpenter:
+  version: "$KARPENTER_VERSION"
+  createServiceAccount: true
+  defaultInstanceProfile: 'KarpenterNodeInstanceProfile'
 vpc:
   id: $VPC_ID
   subnets:
