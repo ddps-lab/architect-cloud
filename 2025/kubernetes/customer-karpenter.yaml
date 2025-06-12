@@ -20,10 +20,12 @@ spec:
           values: ["t2.micro"]
       nodeClassRef:
         name: default
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
   limits:
     cpu: 5000m
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmpty
     consolidateAfter: 5m
 ---
 apiVersion: karpenter.k8s.aws/v1
