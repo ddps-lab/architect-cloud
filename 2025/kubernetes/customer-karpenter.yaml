@@ -35,7 +35,7 @@ metadata:
 spec:
   amiFamily: Bottlerocket
   amiSelectorTerms:
-    - alias: bottlerocket@v1.37.0
+    - alias: bottlerocket@latest
   role: "eksctl-KarpenterNodeRole-coffee-supplier"
   subnetSelectorTerms:
     - tags:
