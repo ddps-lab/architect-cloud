@@ -92,8 +92,6 @@ nodeGroups:
     minSize: 3
     maxSize: 6
     privateNetworking: false
-    ssh:
-      allow: true
 EOF
 
 echo "✅ YAML config generated: $CONFIG_FILE"
