@@ -16,6 +16,7 @@ echo "📄 AWS Load Balancer Controller용 IAM 정책 다운로드 중..."
 curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.13.0/docs/install/iam_policy.json
 echo "✅ ALB IAM 정책 다운로드 완료"
 
+
 echo "🛡️ ALB IAM 정책 생성 중..."
 aws iam create-policy \
     --policy-name AWSLoadBalancerControllerIAMPolicy \
@@ -24,6 +25,11 @@ echo "✅ ALB IAM 정책 생성 완료"
 
 echo "👤 ALB IAM Service Account 생성 중..."
 ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+
+eksctl utils associate-iam-oidc-provider \
+    --region "$REGION" \
+    --cluster "$CLUSTER_NAME" \
+    --approve
 
 eksctl create iamserviceaccount \
     --cluster="$CLUSTER_NAME" \
