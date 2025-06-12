@@ -59,7 +59,7 @@ kind: ClusterConfig
 metadata:
   name: "$CLUSTER_NAME"
   region: "$REGION"
-  version: "\"$CLUSTER_VERSION\""
+  version: "$CLUSTER_VERSION"
   tags:
     karpenter.sh/discovery: "$CLUSTER_NAME"
 iam:
