@@ -57,11 +57,11 @@ apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
 metadata:
-  name: $CLUSTER_NAME
-  region: $REGION
-  version: $CLUSTER_VERSION
+  name: "$CLUSTER_NAME"
+  region: "$REGION"
+  version: "\"$CLUSTER_VERSION\""
   tags:
-    karpenter.sh/discovery: $CLUSTER_NAME
+    karpenter.sh/discovery: "$CLUSTER_NAME"
 iam:
   withOIDC: true
 vpc:
