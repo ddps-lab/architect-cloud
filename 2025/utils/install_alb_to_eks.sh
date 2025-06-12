@@ -27,17 +27,17 @@ echo "👤 ALB IAM Service Account 생성 중..."
 ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
 
 eksctl utils associate-iam-oidc-provider \
-    --region "$REGION" \
-    --cluster "$CLUSTER_NAME" \
+    --region $REGION \
+    --cluster $CLUSTER_NAME \
     --approve
 
 eksctl create iamserviceaccount \
-    --cluster="$CLUSTER_NAME" \
+    --cluster=$CLUSTER_NAME \
     --namespace=kube-system \
     --name=aws-load-balancer-controller \
-    --attach-policy-arn=arn:aws:iam::"$ACCOUNT_ID":policy/AWSLoadBalancerControllerIAMPolicy \
+    --attach-policy-arn=arn:aws:iam::$ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy \
     --override-existing-serviceaccounts \
-    --region "$REGION" \
+    --region $REGION \
     --approve
 echo "✅ ALB IAM Service Account 생성 완료"
 
@@ -49,7 +49,7 @@ echo "✅ Helm 저장소 업데이트 완료"
 echo "🚀 AWS Load Balancer Controller 설치 중..."
 helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   -n kube-system \
-  --set clusterName="$CLUSTER_NAME" \
+  --set clusterName=$CLUSTER_NAME \
   --set serviceAccount.create=false \
   --set serviceAccount.name=aws-load-balancer-controller
 echo "✅ ALB Controller 설치 완료"
