@@ -1,28 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Samsung Cloud Arch MonolithicApp (Standard MySQL)
 
-Parameters:
-  MaxECSServiceTasks:
-    Type: Number
-    MaxValue: 6
-    MinValue: 1
-    Default: 4
-    Description: The maximum number of ECS Tasks allowed at a Service
-
-  MaxECSClusterTasks:
-    Type: Number
-    MaxValue: 8
-    MinValue: 1
-    Default: 6
-    Description: The maximum number of ECS Tasks allowed at a Cluster
-
-  MaxECSClusterServices:
-    Type: Number
-    MaxValue: 2
-    MinValue: 1
-    Default: 2
-    Description: The maximum number of ECS Services allowed at a Cluster
-
 Mappings:
   RegionMap:
     us-east-1:
