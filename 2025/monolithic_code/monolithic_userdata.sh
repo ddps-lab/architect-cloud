@@ -1,6 +1,7 @@
 #!/bin/bash -xe
 apt update -y
-apt install nodejs unzip wget npm mysql-client awscli tree nmap -y
+snap install aws-cli --classic
+apt install nodejs unzip wget npm mysql-client tree nmap -y
 cd /home/ubuntu
 git clone https://github.com/ddps-lab/architect-cloud.git
 cd /home/ubuntu/architect-cloud/2025
@@ -10,14 +11,14 @@ npm install
 
 #RDS setup
 #######################################
-export RDS_DB_EP=!!!Must modify!!!
+export RDS_DB_EP=!!!Must Modify!!!
 #######################################
 echo "export RDS_DB_EP=${RDS_DB_EP}" >> /home/ubuntu/.bashrc
 
 # 사용자 생성 
 mysql -u admin -plab-password -h ${RDS_DB_EP} -P 3306 -e "
     CREATE USER IF NOT EXISTS 'nodeapp'@'%' IDENTIFIED WITH mysql_native_password BY 'coffee';
-    GRANT ALL PRIVILEGES ON *.* TO 'nodeapp'@'%' WITH GRANT OPTION;"
+    GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, REFERENCES, INDEX, ALTER, SHOW DATABASES, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'nodeapp'@'%' WITH GRANT OPTION;"
 
 # DB 생성 
 mysql -u admin -plab-password -h ${RDS_DB_EP} -P 3306 -e "CREATE DATABASE IF NOT EXISTS COFFEE;"
