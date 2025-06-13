@@ -92,10 +92,10 @@ cat >> $CONFIG_FILE <<EOF
 
 nodeGroups:
   - name: coffee-supplier-node-group
-    instanceType: t3.small
-    desiredCapacity: 3
-    minSize: 3
-    maxSize: 6
+    instanceType: t3.medium
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 2
     privateNetworking: false
 EOF
 
