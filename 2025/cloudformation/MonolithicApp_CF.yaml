@@ -1,28 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Samsung Cloud Arch MonolithicApp (Standard MySQL)
 
-Parameters:
-  MaxECSServiceTasks:
-    Type: Number
-    MaxValue: 6
-    MinValue: 1
-    Default: 4
-    Description: The maximum number of ECS Tasks allowed at a Service
-
-  MaxECSClusterTasks:
-    Type: Number
-    MaxValue: 8
-    MinValue: 1
-    Default: 6
-    Description: The maximum number of ECS Tasks allowed at a Cluster
-
-  MaxECSClusterServices:
-    Type: Number
-    MaxValue: 2
-    MinValue: 1
-    Default: 2
-    Description: The maximum number of ECS Services allowed at a Cluster
-
 Mappings:
   RegionMap:
     us-east-1:
@@ -68,7 +46,7 @@ Resources:
               - ecs:RegisterTaskDefinition
               - ecs:ListTaskDefinitions
               - ecs:DescribeTaskDefinition
-            Resource: '*'
+            Resource: "*"
           - Effect: Allow
             Action:
               - iam:PassRole
@@ -91,7 +69,7 @@ Resources:
               - sts:AssumeRole
 
   # VPC and Networking
-  LabVPC:
+  MonolithicVPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.16.0.0/16
@@ -99,55 +77,55 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: LabVPC
+          Value: MonolithicVPC
 
   IGW:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: LabIGW
+          Value: MonolithicIGW
 
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId: !Ref LabVPC
+      VpcId: !Ref MonolithicVPC
       InternetGatewayId: !Ref IGW
 
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref LabVPC
-      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      VpcId: !Ref MonolithicVPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
       CidrBlock: 10.16.10.0/24
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: Public Subnet 1
         - Key: kubernetes.io/role/elb
-          Value: '1'
+          Value: "1"
         - Key: karpenter.sh/discovery
           Value: coffee-supplier
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref LabVPC
-      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      VpcId: !Ref MonolithicVPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
       CidrBlock: 10.16.20.0/24
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: Public Subnet 2
         - Key: kubernetes.io/role/elb
-          Value: '1'
+          Value: "1"
         - Key: karpenter.sh/discovery
           Value: coffee-supplier
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref LabVPC
+      VpcId: !Ref MonolithicVPC
       Tags:
         - Key: Name
           Value: Public Route Table
@@ -174,8 +152,8 @@ Resources:
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref LabVPC
-      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      VpcId: !Ref MonolithicVPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
       CidrBlock: 10.16.30.0/24
       Tags:
         - Key: Name
@@ -184,8 +162,8 @@ Resources:
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref LabVPC
-      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      VpcId: !Ref MonolithicVPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
       CidrBlock: 10.16.40.0/24
       Tags:
         - Key: Name
@@ -194,7 +172,7 @@ Resources:
   PrivateRouteTable1:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref LabVPC
+      VpcId: !Ref MonolithicVPC
       Tags:
         - Key: Name
           Value: Private Route Table 1
@@ -202,7 +180,7 @@ Resources:
   PrivateRouteTable2:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref LabVPC
+      VpcId: !Ref MonolithicVPC
       Tags:
         - Key: Name
           Value: Private Route Table 2
@@ -228,7 +206,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: [ ec2.amazonaws.com ]
+              Service: [ec2.amazonaws.com]
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
@@ -244,7 +222,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow HTTP and SSH
-      VpcId: !Ref LabVPC
+      VpcId: !Ref MonolithicVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -262,7 +240,7 @@ Resources:
       LaunchTemplateData:
         IamInstanceProfile:
           Name: !Ref myEc2InstanceProfile
-        ImageId: !FindInMap [ RegionMap, !Ref AWS::Region, Ubuntu24 ]
+        ImageId: !FindInMap [RegionMap, !Ref AWS::Region, Ubuntu24]
         InstanceType: t2.micro
         NetworkInterfaces:
           - AssociatePublicIpAddress: true
@@ -283,10 +261,28 @@ Resources:
             cd architect-cloud/2025/monolithic_code
             npm install
 
-            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e "CREATE USER 'nodeapp' IDENTIFIED WITH mysql_native_password BY 'coffee'"
-            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, REFERENCES, INDEX, ALTER, SHOW DATABASES, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'nodeapp'@'%' WITH GRANT OPTION;"
-            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e "CREATE DATABASE COFFEE;"
-            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e "USE COFFEE; CREATE TABLE suppliers(id INT NOT NULL AUTO_INCREMENT, name VARCHAR(255) NOT NULL, address VARCHAR(255) NOT NULL, city VARCHAR(255) NOT NULL, state VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL, phone VARCHAR(100) NOT NULL, PRIMARY KEY (id));"
+            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e \
+            "SELECT COUNT(*) AS cnt FROM mysql.user WHERE user = 'nodeapp' AND host = '%'\G" | grep -q 'cnt: 0' && \
+            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e \
+            "CREATE USER 'nodeapp'@'%' IDENTIFIED BY 'coffee';"
+
+            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e \
+            "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, REFERENCES, INDEX, ALTER, SHOW DATABASES, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'nodeapp'@'%' WITH GRANT OPTION;"
+
+            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e \
+            "CREATE DATABASE IF NOT EXISTS COFFEE;"
+
+            mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -D COFFEE -e \
+            "CREATE TABLE IF NOT EXISTS suppliers(
+                id INT NOT NULL AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL,
+                address VARCHAR(255) NOT NULL,
+                city VARCHAR(255) NOT NULL,
+                state VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                phone VARCHAR(100) NOT NULL,
+                PRIMARY KEY (id)
+            );"
 
             sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/monolithic_code/app/config/config.js
             sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/microservice/customer/app/config/config.js
@@ -333,7 +329,7 @@ Resources:
     Properties:
       GroupName: DBSecurityGroup
       GroupDescription: Enable MySQL access
-      VpcId: !Ref LabVPC
+      VpcId: !Ref MonolithicVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 3306
@@ -346,10 +342,11 @@ Resources:
   # Standard MySQL Instance
   MySQLDBInstance:
     Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
     Properties:
       DBInstanceIdentifier: monolithic-mysql
       Engine: mysql
-      EngineVersion: "8.0.32"
+      EngineVersion: "8.0.42"
       DBInstanceClass: db.t3.micro
       AllocatedStorage: "20"
       StorageType: gp2
@@ -360,7 +357,7 @@ Resources:
         - !Ref DBSecurityGroup
       MasterUsername: admin
       MasterUserPassword: lab-password
-      BackupRetentionPeriod: 7
+      BackupRetentionPeriod: 0
       AutoMinorVersionUpgrade: true
       Tags:
         - Key: Name
@@ -369,6 +366,6 @@ Resources:
 Outputs:
   MySQLEndpoint:
     Description: Endpoint of the MySQL instance
-    Value: !GetAtt [ MySQLDBInstance, Endpoint.Address ]
+    Value: !GetAtt [MySQLDBInstance, Endpoint.Address]
     Export:
       Name: MonolithicMySQLEndpoint
