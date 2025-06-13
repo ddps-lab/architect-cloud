@@ -4,7 +4,6 @@ set -e
 # 변수 설정
 CLUSTER_NAME="coffee-supplier"
 REGION="us-west-2"
-VPC_NAME="LabVPC"
 
 echo "🔧 Helm 설치 중..."
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3

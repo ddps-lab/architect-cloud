@@ -7,12 +7,12 @@ CLUSTER_NAME="coffee-supplier"
 CLUSTER_VERSION='1.33'
 KARPENTER_VERSION='1.5.0'
 REGION="us-west-2"
-VPC_NAME="LabVPC"
+VPC_NAME="MonolithicVPC"
 
 
 echo "🔍 Searching for VPC with Name tag: $VPC_NAME in region: $REGION..."
 
-# VPC ID 자동 검색 (태그 Name이 LabVPC인 경우)
+# VPC ID 자동 검색
 VPC_ID=$(aws ec2 describe-vpcs \
   --region "$REGION" \
   --filters "Name=tag:Name,Values=$VPC_NAME" \
