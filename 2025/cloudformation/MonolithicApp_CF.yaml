@@ -342,6 +342,7 @@ Resources:
   # Standard MySQL Instance
   MySQLDBInstance:
     Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
     Properties:
       DBInstanceIdentifier: monolithic-mysql
       Engine: mysql

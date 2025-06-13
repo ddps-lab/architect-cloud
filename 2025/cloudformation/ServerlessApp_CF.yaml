@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 
 Resources:
   LabVPC:
@@ -38,7 +38,7 @@ Resources:
       AvailabilityZone:
         Fn::Select:
           - 0
-          - Fn::GetAZs: ''
+          - Fn::GetAZs: ""
       CidrBlock: 10.16.10.0/24
       MapPublicIpOnLaunch: true
       Tags:
@@ -51,8 +51,8 @@ Resources:
       VpcId: !Ref LabVPC
       AvailabilityZone:
         Fn::Select:
-        - 1
-        - Fn::GetAZs: ''
+          - 1
+          - Fn::GetAZs: ""
       CidrBlock: 10.16.20.0/24
       MapPublicIpOnLaunch: true
       Tags:
@@ -70,8 +70,8 @@ Resources:
     Properties:
       VpcId: !Ref LabVPC
       Tags:
-      - Key: Name
-        Value: Public Route Table
+        - Key: Name
+          Value: Public Route Table
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -175,7 +175,7 @@ Resources:
   # RDS Database
   ###########
   DBSubnetGroup:
-    Type: 'AWS::RDS::DBSubnetGroup'
+    Type: "AWS::RDS::DBSubnetGroup"
     Properties:
       DBSubnetGroupDescription: "Subnet group for RDS"
       SubnetIds:
@@ -183,13 +183,14 @@ Resources:
         - !Ref PublicSubnet2
 
   MyDBInstance:
-    Type: 'AWS::RDS::DBInstance'
+    Type: "AWS::RDS::DBInstance"
+    DeletionPolicy: Delete
     DependsOn: AttachGateway
     Properties:
       DBInstanceIdentifier: supplierdb
       DBInstanceClass: db.t3.micro
       Engine: mysql
-      EngineVersion: '8.0.35'
+      EngineVersion: "8.0.42"
       MasterUsername: nodeapp
       MasterUserPassword: lab-password
       DBName: COFFEE
@@ -207,7 +208,7 @@ Resources:
           Value: MyDatabaseInstance
 
   MyDBSecurityGroup:
-    Type: 'AWS::EC2::SecurityGroup'
+    Type: "AWS::EC2::SecurityGroup"
     Properties:
       GroupDescription: Security group for RDS instance
       VpcId: !Ref LabVPC
@@ -221,4 +222,3 @@ Outputs:
   DBInstanceEndpoint:
     Description: "The endpoint address of the RDS instance"
     Value: !GetAtt MyDBInstance.Endpoint.Address
-  
