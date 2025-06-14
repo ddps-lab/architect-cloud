@@ -7,7 +7,7 @@ CLUSTER_NAME="coffee-supplier"
 CLUSTER_VERSION='1.33'
 KARPENTER_VERSION='1.5.0'
 REGION="us-west-2"
-VPC_NAME="MonolithicVPC"
+VPC_NAME="MSAVPC"
 
 
 echo "🔍 Searching for VPC with Name tag: $VPC_NAME in region: $REGION..."

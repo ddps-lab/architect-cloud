@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: customer-hpa
+  name: customer-hpa
 spec:
-    selector:
-        matchLabels:
-            app: customer
-    replicas: 1
-    template:
-        metadata:
-            labels:
-                app: customer
-        spec:
-            containers:
-                - name: customer-hpa
-                  image: $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/customer
-                  ports:
-                      - containerPort: 8080
-                        protocol: TCP
-                  resources:
-                      limits:
-                          cpu: 500m
-                      requests:
-                          cpu: 200m
+  selector:
+    matchLabels:
+      app: customer
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: customer
+    spec:
+      containers:
+        - name: customer-hpa
+          image: $ACCOUNT_ID.dkr.ecr.us-west-2.amazonaws.com/customer
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 500m
+            requests:
+              cpu: 200m
