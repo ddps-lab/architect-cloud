@@ -344,7 +344,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Delete
     Properties:
-      DBInstanceIdentifier: monolithic-mysql
+      DBInstanceIdentifier: msa-mysql
       Engine: mysql
       EngineVersion: "8.0.42"
       DBInstanceClass: db.t3.micro
