@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Samsung Cloud Arch MonolithicApp (Standard MySQL)
+Description: Samsung Cloud Arch MSA (Standard MySQL)
 
 Mappings:
   RegionMap:
@@ -69,7 +69,7 @@ Resources:
               - sts:AssumeRole
 
   # VPC and Networking
-  MonolithicVPC:
+  MSAVPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.16.0.0/16
@@ -77,25 +77,25 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: MonolithicVPC
+          Value: MSAVPC
 
   IGW:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: MonolithicIGW
+          Value: MSAIGW
 
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       InternetGatewayId: !Ref IGW
 
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       AvailabilityZone: !Select [0, !GetAZs ""]
       CidrBlock: 10.16.10.0/24
       MapPublicIpOnLaunch: true
@@ -110,7 +110,7 @@ Resources:
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       AvailabilityZone: !Select [1, !GetAZs ""]
       CidrBlock: 10.16.20.0/24
       MapPublicIpOnLaunch: true
@@ -125,7 +125,7 @@ Resources:
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       Tags:
         - Key: Name
           Value: Public Route Table
@@ -152,7 +152,7 @@ Resources:
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       AvailabilityZone: !Select [0, !GetAZs ""]
       CidrBlock: 10.16.30.0/24
       Tags:
@@ -162,7 +162,7 @@ Resources:
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       AvailabilityZone: !Select [1, !GetAZs ""]
       CidrBlock: 10.16.40.0/24
       Tags:
@@ -172,7 +172,7 @@ Resources:
   PrivateRouteTable1:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       Tags:
         - Key: Name
           Value: Private Route Table 1
@@ -180,7 +180,7 @@ Resources:
   PrivateRouteTable2:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       Tags:
         - Key: Name
           Value: Private Route Table 2
@@ -222,7 +222,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow HTTP and SSH
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -310,7 +310,7 @@ Resources:
         Version: !GetAtt Ec2AppNodeLaunchTemplate.LatestVersionNumber
       Tags:
         - Key: Name
-          Value: MonolithicAppServer
+          Value: MSA-MonolithicAppServer
 
   # Database Subnets & Security
   DBSubnetGroup:
@@ -329,7 +329,7 @@ Resources:
     Properties:
       GroupName: DBSecurityGroup
       GroupDescription: Enable MySQL access
-      VpcId: !Ref MonolithicVPC
+      VpcId: !Ref MSAVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 3306
@@ -344,7 +344,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Delete
     Properties:
-      DBInstanceIdentifier: monolithic-mysql
+      DBInstanceIdentifier: msa-mysql
       Engine: mysql
       EngineVersion: "8.0.42"
       DBInstanceClass: db.t3.micro
@@ -361,11 +361,11 @@ Resources:
       AutoMinorVersionUpgrade: true
       Tags:
         - Key: Name
-          Value: MonolithicMySQL
+          Value: MSAMySQL
 
 Outputs:
   MySQLEndpoint:
     Description: Endpoint of the MySQL instance
     Value: !GetAtt [MySQLDBInstance, Endpoint.Address]
     Export:
-      Name: MonolithicMySQLEndpoint
+      Name: MSAMySQLEndpoint

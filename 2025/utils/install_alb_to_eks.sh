@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+aws configure set cli_pager ""
 
 # 변수 설정
 CLUSTER_NAME="coffee-supplier"
