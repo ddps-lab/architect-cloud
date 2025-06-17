@@ -241,7 +241,7 @@ Resources:
         IamInstanceProfile:
           Name: !Ref myEc2InstanceProfile
         ImageId: !FindInMap [RegionMap, !Ref AWS::Region, Ubuntu24]
-        InstanceType: t2.micro
+        InstanceType: t3.medium
         NetworkInterfaces:
           - AssociatePublicIpAddress: true
             DeleteOnTermination: true
