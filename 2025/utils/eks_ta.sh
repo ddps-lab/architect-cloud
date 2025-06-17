@@ -11,8 +11,7 @@ ACCOUNT_ID=$(aws sts get-caller-identity --output text --query Account)
 aws eks create-access-entry \
   --cluster-name coffee-supplier \
   --principal-arn arn:aws:iam::$ACCOUNT_ID:role/OrganizationAccountAccessRole \
-  --access-scope type=cluster \
-  --permissions policyArn=arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
+  --access-policies policyArn=arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy,accessScope={type=cluster}
 
 
 # eksctl로 kubeconfig 설정
