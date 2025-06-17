@@ -14,6 +14,11 @@ aws eks create-access-entry \
   --type STANDARD \
   --username ta-user
 
+aws eks associate-access-policy \
+  --cluster-name coffee-supplier \
+  --principal-arn arn:aws:iam::$ACCOUNT_ID:role/OrganizationAccountAccessRole \
+  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy \
+  --access-scope type=cluster
 
 # eksctl로 kubeconfig 설정
 aws eks update-kubeconfig \
