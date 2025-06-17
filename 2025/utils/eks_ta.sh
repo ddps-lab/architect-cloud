@@ -1,6 +1,5 @@
 #!/bin/bash
 
-set -e
 CLUSTER_NAME="coffee-supplier"
 REGION="us-west-2"
 
@@ -17,7 +16,7 @@ aws eks create-access-entry \
 aws eks associate-access-policy \
   --cluster-name coffee-supplier \
   --principal-arn arn:aws:iam::$ACCOUNT_ID:role/OrganizationAccountAccessRole \
-  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy \
+  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
   --access-scope type=cluster
 
 # eksctl로 kubeconfig 설정
