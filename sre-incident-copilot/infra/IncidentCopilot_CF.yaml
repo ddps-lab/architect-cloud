@@ -57,8 +57,8 @@ Parameters:
   # --- models ---
   ModelId:
     Type: String
-    Default: global.anthropic.claude-sonnet-4-6
-    Description: inference profile id (on-demand for sonnet-4-6 requires a profile)
+    Default: global.anthropic.claude-haiku-4-5-20251001-v1:0
+    Description: inference profile id (on-demand for 4.x models requires a profile; needs Bedrock model access)
   StartModule:
     Type: String
     Default: m1
