@@ -72,7 +72,14 @@ python kb/ingest_danluu.py sync --bucket "$BK" --kb-id "$KB" --ds-id "$DS"
 ./web-chat/deploy_chat.sh
 ```
 
-Then open the printed **ChatSiteUrl**, click ⚙︎ 설정, paste the **AgentApiUrl**, save, and chat.
+Then open the printed **ChatSiteUrl**, click ⚙︎ 설정, paste the **AgentFunctionUrl**
+(the Lambda Function URL — it has no 30s API Gateway cap, needed for multi-step
+agent runs), save, and chat.
+
+> The agent runs several tool calls + model rounds per turn (often >30s), so the
+> chat path uses the Lambda Function URL rather than API Gateway. Public Function
+> URLs in this account require BOTH `lambda:InvokeFunctionUrl` and
+> `lambda:InvokeFunction` granted to `*` (both are in the template).
 
 ## Run an incident (lab loop)
 

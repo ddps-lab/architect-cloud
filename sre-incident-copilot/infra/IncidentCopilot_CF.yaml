@@ -277,7 +277,7 @@ Resources:
       FunctionName: strands-incident-copilot
       Runtime: python3.12
       Handler: agent.handler.handler
-      Timeout: 120
+      Timeout: 300
       MemorySize: 1024
       Role: !GetAtt AgentRole.Arn
       Code:
@@ -343,6 +343,38 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AgentApi}/*/*
+
+  # Lambda Function URL — long-running chat path (no 30s API Gateway cap).
+  AgentFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref AgentFunction
+      AuthType: NONE
+      InvokeMode: BUFFERED
+      Cors:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - "*"
+        AllowHeaders:
+          - "*"
+
+  AgentUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AgentFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  # Public Function URLs in this account also require lambda:InvokeFunction for "*"
+  # (FunctionUrlAuthType condition is not valid on the InvokeFunction action).
+  AgentUrlInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AgentFunction
+      Action: lambda:InvokeFunction
+      Principal: "*"
 
   ###########
   # Chat web (S3 + CloudFront)
@@ -411,6 +443,9 @@ Outputs:
   AgentApiUrl:
     Description: Agent chat endpoint base (POST /chat)
     Value: !GetAtt AgentApi.ApiEndpoint
+  AgentFunctionUrl:
+    Description: Lambda Function URL for chat (no 30s cap) — use this in the web UI
+    Value: !GetAtt AgentFunctionUrl.FunctionUrl
   ChatSiteUrl:
     Description: Chat web UI (CloudFront)
     Value: !Sub https://${ChatDistribution.DomainName}
