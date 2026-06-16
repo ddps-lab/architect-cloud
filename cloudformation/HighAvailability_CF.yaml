@@ -1,0 +1,477 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  High availability coffee-supplier app. Provisions a multi-AZ VPC, RDS MySQL,
+  an Application Load Balancer, and an Auto Scaling Group of EC2 app servers
+  (private subnets) that bootstrap themselves via user data.
+
+Parameters:
+  AppServerAMI:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+    Description: Ubuntu 24.04 AMI for the app servers (resolved from SSM)
+  DBUsername:
+    Type: String
+    Default: admin
+  DBPassword:
+    Type: String
+    Default: lab-password
+    NoEcho: true
+  DBName:
+    Type: String
+    Default: COFFEE
+
+Resources:
+  ###########
+  # VPC
+  ###########
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.16.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: MyVPC
+
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: MyVPC
+    Properties:
+      Tags:
+        - Key: Name
+          Value: LabIGW
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn:
+      - MyVPC
+      - IGW
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref IGW
+
+  ###########
+  # Public Subnets
+  ###########
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: 10.16.10.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: 10.16.20.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet2
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn:
+      - MyVPC
+      - AttachGateway
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: Public Route Table
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - PublicRouteTable
+      - AttachGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetRouteAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnetRouteAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  ###########
+  # Private Subnets (App servers + RDS)
+  ###########
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    DependsOn: MyVPC
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.16.30.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: Private Subnet 1
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    DependsOn: MyVPC
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: 10.16.40.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: Private Subnet 2
+
+  ###########
+  # NAT Gateways (per AZ)
+  ###########
+  NatEIP1:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP1.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: NatGateway1
+
+  NatEIP2:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP2.AllocationId
+      SubnetId: !Ref PublicSubnet2
+      Tags:
+        - Key: Name
+          Value: NatGateway2
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    DependsOn: MyVPC
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: Private Route Table 1
+
+  PrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    DependsOn: MyVPC
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: Private Route Table 2
+
+  PrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2
+
+  PrivateRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
+
+  ###########
+  # Security Groups
+  ###########
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB security group (HTTP from anywhere)
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: LoadBalancerSG
+
+  AppServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: App server security group (HTTP only from the ALB)
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: AppServerSG
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS MySQL security group (only app servers may connect)
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: DBSG
+
+  # Allow MySQL only from the app server SG (separate resource to avoid a circular dependency)
+  DBIngressFromAppServer:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref AppServerSecurityGroup
+
+  ###########
+  # RDS Database (private)
+  ###########
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private subnet group for RDS
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+  MyDBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    DependsOn: AttachGateway
+    Properties:
+      DBInstanceIdentifier: monolithic-mysql
+      DBInstanceClass: db.t3.micro
+      Engine: mysql
+      EngineVersion: "8.0.42"
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBName: !Ref DBName
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      MultiAZ: false
+      AllocatedStorage: 20
+      MaxAllocatedStorage: 1000
+      StorageType: gp2
+      StorageEncrypted: true
+      PubliclyAccessible: false
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: MyDatabaseInstance
+
+  ###########
+  # Application Load Balancer
+  ###########
+  MonolithicAppServerLB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn: AttachGateway
+    Properties:
+      Name: MonolithicAppServerLB
+      Type: application
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      Tags:
+        - Key: Name
+          Value: MonolithicAppServerLB
+
+  MonolithicAppServerTG:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: MonolithicAppServerTG
+      VpcId: !Ref MyVPC
+      TargetType: instance
+      Protocol: HTTP
+      Port: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 10
+      HealthyThresholdCount: 2
+      Tags:
+        - Key: Name
+          Value: MonolithicAppServerTG
+
+  MonolithicAppServerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref MonolithicAppServerLB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref MonolithicAppServerTG
+
+  ###########
+  # Auto Scaling Group (app servers)
+  ###########
+  AppServerInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  AppServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref AppServerInstanceRole
+
+  MonolithicAppServerLT:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: MonolithicAppServerLT
+      LaunchTemplateData:
+        ImageId: !Ref AppServerAMI
+        InstanceType: t2.micro
+        IamInstanceProfile:
+          Name: !Ref AppServerInstanceProfile
+        SecurityGroupIds:
+          - !Ref AppServerSecurityGroup
+        UserData:
+          Fn::Base64: !Sub
+            - |
+              #!/bin/bash -xe
+              exec > /var/log/userdata.log 2>&1
+              apt-get update -y
+              apt-get install -y nodejs npm git mysql-client unzip wget
+              cd /home/ubuntu
+              git clone https://github.com/ddps-lab/architect-cloud.git
+              chown ubuntu -R /home/ubuntu/architect-cloud/monolithic_code
+              cd /home/ubuntu/architect-cloud/monolithic_code
+              npm install
+
+              export RDS_DB_EP=${RDSEndpoint}
+              echo "export RDS_DB_EP=${!RDS_DB_EP}" >> /home/ubuntu/.bashrc
+
+              mysql -u ${DBUsername} -p${DBPassword} -h ${!RDS_DB_EP} -P 3306 -e "
+                  CREATE USER IF NOT EXISTS 'nodeapp'@'%' IDENTIFIED WITH mysql_native_password BY 'coffee';
+                  GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, PROCESS, REFERENCES, INDEX, ALTER, SHOW DATABASES, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'nodeapp'@'%' WITH GRANT OPTION;"
+
+              mysql -u ${DBUsername} -p${DBPassword} -h ${!RDS_DB_EP} -P 3306 -e "CREATE DATABASE IF NOT EXISTS ${DBName};"
+
+              mysql -u ${DBUsername} -p${DBPassword} -h ${!RDS_DB_EP} -P 3306 -e "
+                  USE ${DBName};
+                  CREATE TABLE IF NOT EXISTS suppliers (
+                      id INT NOT NULL AUTO_INCREMENT,
+                      name VARCHAR(255) NOT NULL,
+                      address VARCHAR(255) NOT NULL,
+                      city VARCHAR(255) NOT NULL,
+                      state VARCHAR(255) NOT NULL,
+                      email VARCHAR(255) NOT NULL,
+                      phone VARCHAR(100) NOT NULL,
+                      PRIMARY KEY (id)
+                  );"
+
+              sed -i "s|REPLACE-DB-HOST|${!RDS_DB_EP}|g" /home/ubuntu/architect-cloud/monolithic_code/app/config/config.js
+              sleep 2
+
+              cd /home/ubuntu/architect-cloud/monolithic_code
+              node index.js > /var/log/app.log 2>&1 &
+
+              cat <<EOF > /etc/rc.local
+              #!/bin/bash
+              cd /home/ubuntu/architect-cloud/monolithic_code/
+              sudo node index.js
+              EOF
+              chmod +x /etc/rc.local
+            - RDSEndpoint: !GetAtt MyDBInstance.Endpoint.Address
+
+  MonolithicAppServerASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - PrivateRoute1
+      - PrivateRoute2
+    Properties:
+      AutoScalingGroupName: MonolithicAppServerASG
+      LaunchTemplate:
+        LaunchTemplateId: !Ref MonolithicAppServerLT
+        Version: !GetAtt MonolithicAppServerLT.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      TargetGroupARNs:
+        - !Ref MonolithicAppServerTG
+      DesiredCapacity: "2"
+      MinSize: "2"
+      MaxSize: "4"
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
+      MetricsCollection:
+        - Granularity: 1Minute
+      Tags:
+        - Key: Name
+          Value: MonolithicAppServerASG
+          PropagateAtLaunch: true
+
+  RequestCountScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref MonolithicAppServerASG
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ALBRequestCountPerTarget
+          ResourceLabel: !Sub
+            - "${LBFullName}/${TGFullName}"
+            - LBFullName: !GetAtt MonolithicAppServerLB.LoadBalancerFullName
+              TGFullName: !GetAtt MonolithicAppServerTG.TargetGroupFullName
+        TargetValue: 4000
+
+Outputs:
+  DBInstanceEndpoint:
+    Description: RDS MySQL endpoint
+    Value: !GetAtt MyDBInstance.Endpoint.Address
+  LoadBalancerDNS:
+    Description: ALB endpoint (coffee web app)
+    Value: !GetAtt MonolithicAppServerLB.DNSName
+  AutoScalingGroupName:
+    Description: Auto Scaling group name
+    Value: !Ref MonolithicAppServerASG
