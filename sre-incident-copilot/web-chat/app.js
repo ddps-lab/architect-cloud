@@ -8,6 +8,89 @@ const LS_ENDPOINT = "copilot.endpoint";
 const LS_SESSION = "copilot.session";
 const $ = (id) => document.getElementById(id);
 
+// --- minimal, safe Markdown -> HTML (covers what the agent emits) ---
+function escapeHtml(s) {
+	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function mdInline(s) {
+	// inline code first (protect its contents)
+	const codes = [];
+	s = s.replace(/`([^`]+)`/g, (_, c) => {
+		codes.push(c);
+		return "\u0000" + (codes.length - 1) + "\u0000";
+	});
+	s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+	s = s.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+	s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+	s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => "<code>" + codes[+i] + "</code>");
+	return s;
+}
+function renderMarkdown(md) {
+	const lines = escapeHtml(md).split("\n");
+	let html = "";
+	let i = 0;
+	let inCode = false, codeBuf = [];
+	let listType = null, listBuf = [];
+	const flushList = () => {
+		if (listType) {
+			html += "<" + listType + ">" + listBuf.map((x) => "<li>" + mdInline(x) + "</li>").join("") + "</" + listType + ">";
+			listType = null; listBuf = [];
+		}
+	};
+	while (i < lines.length) {
+		const line = lines[i];
+		// fenced code
+		const fence = line.match(/^```(.*)$/);
+		if (fence) {
+			if (!inCode) { flushList(); inCode = true; codeBuf = []; }
+			else { html += "<pre><code>" + codeBuf.join("\n") + "</code></pre>"; inCode = false; }
+			i++; continue;
+		}
+		if (inCode) { codeBuf.push(line); i++; continue; }
+		// table: header row + separator row
+		if (/\|/.test(line) && i + 1 < lines.length && /^\s*\|?[\s:|-]+\|?\s*$/.test(lines[i + 1]) && /-/.test(lines[i + 1])) {
+			flushList();
+			const splitRow = (r) => r.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => c.trim());
+			const head = splitRow(line);
+			i += 2;
+			let rows = "";
+			while (i < lines.length && /\|/.test(lines[i]) && lines[i].trim() !== "") {
+				const cells = splitRow(lines[i]);
+				rows += "<tr>" + cells.map((c) => "<td>" + mdInline(c) + "</td>").join("") + "</tr>";
+				i++;
+			}
+			html += "<table><thead><tr>" + head.map((c) => "<th>" + mdInline(c) + "</th>").join("") +
+				"</tr></thead><tbody>" + rows + "</tbody></table>";
+			continue;
+		}
+		// heading
+		const h = line.match(/^(#{1,6})\s+(.*)$/);
+		if (h) { flushList(); html += "<h" + h[1].length + ">" + mdInline(h[2]) + "</h" + h[1].length + ">"; i++; continue; }
+		// hr
+		if (/^\s*([-*_])\1{2,}\s*$/.test(line)) { flushList(); html += "<hr>"; i++; continue; }
+		// blockquote
+		if (/^\s*>\s?/.test(line)) { flushList(); html += "<blockquote>" + mdInline(line.replace(/^\s*>\s?/, "")) + "</blockquote>"; i++; continue; }
+		// list items
+		const ul = line.match(/^\s*[-*]\s+(.*)$/);
+		const ol = line.match(/^\s*\d+\.\s+(.*)$/);
+		if (ul) { if (listType !== "ul") flushList(); listType = "ul"; listBuf.push(ul[1]); i++; continue; }
+		if (ol) { if (listType !== "ol") flushList(); listType = "ol"; listBuf.push(ol[1]); i++; continue; }
+		// blank line
+		if (line.trim() === "") { flushList(); i++; continue; }
+		// paragraph (merge consecutive non-empty, non-special lines)
+		flushList();
+		let para = [line];
+		i++;
+		while (i < lines.length && lines[i].trim() !== "" && !/^(#{1,6}\s|```|\s*[-*]\s|\s*\d+\.\s|\s*>)/.test(lines[i]) && !/\|/.test(lines[i])) {
+			para.push(lines[i]); i++;
+		}
+		html += "<p>" + para.map(mdInline).join("<br>") + "</p>";
+	}
+	flushList();
+	if (inCode) html += "<pre><code>" + codeBuf.join("\n") + "</code></pre>";
+	return html;
+}
+
 function getEndpoint() {
 	return (localStorage.getItem(LS_ENDPOINT) || "").replace(/\/+$/, "");
 }
@@ -62,6 +145,7 @@ function newAgentTurn() {
 			body.textContent = "";
 		}
 	};
+	let raw = "";
 	return {
 		setModule: (m) => {
 			badge.textContent = "MODULE " + m;
@@ -81,7 +165,8 @@ function newAgentTurn() {
 		},
 		appendText: (delta) => {
 			clearThinking();
-			body.textContent += delta;
+			raw += delta;
+			body.innerHTML = renderMarkdown(raw);
 			scroll();
 		},
 	};

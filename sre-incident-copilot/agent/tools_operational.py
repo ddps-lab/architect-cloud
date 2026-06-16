@@ -4,7 +4,8 @@ Tools:
   run_smoke_test(service)   - hit the live API Gateway endpoint, report status   [read]
   get_logs(service, minutes)- pull recent CloudWatch error lines for the service [read]
   kb_search(query)          - retrieve matching post-mortems from the KB (M4)    [read]
-  apply_recovery(action)    - perform the real fix (RDS ALTER / clean redeploy)  [WRITE]
+  run_sql(statement)        - run a SQL statement (agent composes the real DDL)   [WRITE]
+  redeploy_service(service) - redeploy a service's canonical build                [WRITE]
 
 Configuration comes from environment variables (set by the IncidentCopilot stack):
   COFFEE_CUSTOMER_API, COFFEE_EMPLOYEE_API   - API Gateway base URLs
@@ -131,45 +132,41 @@ def kb_search(query: str) -> str:
 
 
 @tool
-def apply_recovery(action: str) -> str:
-    """Apply a state-changing remediation. ONLY call after the human operator
-    explicitly approves in chat. Re-run a smoke test afterward to verify.
+def run_sql(statement: str) -> str:
+    """대상 시스템의 MySQL DB에 SQL 문 하나를 실행합니다. 스키마 점검
+    (예: SHOW CREATE TABLE ...)이나, 진단으로 도출한 실제 복구 DDL(예: 컬럼 타입
+    변경)을 **직접 작성**해 실행하세요. 상태를 바꾸는 문장은 운영자의 명시적
+    승인 후에만 실행합니다.
 
     Args:
-        action: one of
-            "fix_f1" - migrate suppliers.id to BIGINT (integer PK overflow)
-            "fix_f2" - redeploy clean code (remove pool-exhausting transactions)
-            "fix_f3" - redeploy clean code (remove unbounded /tmp logging)
-            "fix_f4" - restore phone column to VARCHAR
+        statement: 실행할 단일 SQL 문.
     """
     injector = os.environ.get("INJECTOR_FN", "coffee-fault-injector")
-
-    def call_injector(injector_action):
-        r = _lambda.invoke(
-            FunctionName=injector,
-            Payload=json.dumps({"action": injector_action}).encode(),
-        )
-        return r["Payload"].read().decode("utf-8", "replace")
-
-    def redeploy_clean(service):
-        bucket = os.environ.get("CODE_BUCKET")
-        if not bucket:
-            return "CODE_BUCKET not configured; cannot redeploy."
-        _lambda.update_function_code(
-            FunctionName=_FN[service], S3Bucket=bucket, S3Key=_CLEAN_KEY[service]
-        )
-        _lambda.get_waiter("function_updated").wait(FunctionName=_FN[service])
-        return f"redeployed clean code to {_FN[service]}"
-
-    if action == "fix_f1":
-        return "fix_f1 applied: " + call_injector("restore_id_bigint")
-    if action == "fix_f4":
-        return "fix_f4 applied: " + call_injector("restore_phone_varchar")
-    if action == "fix_f2":
-        return "fix_f2 applied: " + redeploy_clean("customer") + "; " + redeploy_clean("employee")
-    if action == "fix_f3":
-        return "fix_f3 applied: " + redeploy_clean("customer") + "; " + redeploy_clean("employee")
-    return f"Unknown recovery action '{action}'. Known: fix_f1, fix_f2, fix_f3, fix_f4."
+    r = _lambda.invoke(
+        FunctionName=injector,
+        Payload=json.dumps({"action": "run_sql", "sql": statement}).encode(),
+    )
+    return r["Payload"].read().decode("utf-8", "replace")
 
 
-OPERATIONAL_TOOLS = [run_smoke_test, get_logs, kb_search, apply_recovery]
+@tool
+def redeploy_service(service: str) -> str:
+    """해당 서비스의 Lambda를 정규(검증된) 빌드로 재배포합니다. 최근/현재 코드
+    변경이 근본 원인일 때(잘못된 배포를 되돌릴 때) 사용합니다. 운영자의 명시적
+    승인 후에만 실행합니다.
+
+    Args:
+        service: "customer" 또는 "employee".
+    """
+    bucket = os.environ.get("CODE_BUCKET")
+    fn = _FN.get(service)
+    if not fn:
+        return f"unknown service '{service}'"
+    if not bucket:
+        return "CODE_BUCKET not configured."
+    _lambda.update_function_code(FunctionName=fn, S3Bucket=bucket, S3Key=_CLEAN_KEY[service])
+    _lambda.get_waiter("function_updated").wait(FunctionName=fn)
+    return f"redeployed canonical build to {fn}"
+
+
+OPERATIONAL_TOOLS = [run_smoke_test, get_logs, kb_search, run_sql, redeploy_service]
