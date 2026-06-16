@@ -24,7 +24,14 @@
 				<div id="supplier-form-fields"></div>
 				<button id="submit-btn" type="button" class="btn btn-primary" onclick="submitForm()">Submit</button>
 			</form>
+			<div id="form-alert" class="mt-3" role="alert" style="display: none"></div>
 			<script>
+				function showAlert(type, message) {
+					const el = document.getElementById("form-alert");
+					el.className = "mt-3 alert alert-" + type;
+					el.textContent = message;
+					el.style.display = "block";
+				}
 				function submitForm() {
 					const form = document.getElementById("supplier-form");
 					const nameInput = document.getElementById("name");
@@ -41,11 +48,13 @@
 						!emailInput.value ||
 						!phoneInput.value
 					) {
-						alert("All fields are required");
+						showAlert("warning", "All fields are required");
 						return;
 					}
 					const formData = new FormData(form);
 					const urlEncodedData = new URLSearchParams(formData).toString();
+
+					showAlert("info", "Submitting…");
 
 					fetch("YOUR_API_URL/api/v1/supplier-add", {
 						method: "POST",
@@ -54,18 +63,21 @@
 						},
 						body: urlEncodedData,
 					})
-						.then((response) => {
+						.then(async (response) => {
+							const raw = await response.text();
 							if (!response.ok) {
-								throw new Error("Network response was not ok");
+								throw new Error("HTTP " + response.status + " — " + (raw || response.statusText));
 							}
-							return response.json();
+							return raw ? JSON.parse(raw) : {};
 						})
 						.then((data) => {
 							console.log("Success:", data);
-							window.location.href = "./supplier-list-all.html";
+							showAlert("success", "Supplier added. Redirecting…");
+							setTimeout(() => (window.location.href = "./supplier-list-all.html"), 800);
 						})
 						.catch((error) => {
 							console.error("Error:", error);
+							showAlert("danger", "공급자 추가 실패: " + error.message);
 						});
 				}
 			</script>
