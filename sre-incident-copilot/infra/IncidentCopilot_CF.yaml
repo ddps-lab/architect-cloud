@@ -1,0 +1,425 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  SRE Incident Copilot — Strands agent (VPC Lambda) + Bedrock Knowledge Base
+  (S3 Vectors) + fault-injector Lambda + HTTP API + chat web (S3/CloudFront).
+  Builds on the existing coffee-serverless stack (VPC/subnets/SG/RDS/API URLs are
+  passed in as parameters). S3 Vectors bucket+index are created beforehand by
+  kb/setup_s3vectors.sh and referenced here by ARN.
+
+Parameters:
+  # --- networking (from coffee-serverless) ---
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: coffee-serverless private subnets (Lambda + RDS reachability)
+  LambdaSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: coffee-serverless LambdaSG (already allowed into the RDS SG)
+
+  # --- database (from coffee-serverless) ---
+  DbHost:
+    Type: String
+  DbUser:
+    Type: String
+    Default: nodeapp
+  DbPassword:
+    Type: String
+    NoEcho: true
+    Default: lab-password
+  DbName:
+    Type: String
+    Default: COFFEE
+
+  # --- coffee service wiring ---
+  CustomerApi:
+    Type: String
+  EmployeeApi:
+    Type: String
+  CodeBucket:
+    Type: String
+    Description: bucket holding clean coffee zips (for apply_recovery redeploy)
+  CustomerCleanKey:
+    Type: String
+    Default: lambda/customer.zip
+  EmployeeCleanKey:
+    Type: String
+    Default: lambda/employee.zip
+
+  # --- agent / injector code packages ---
+  AgentCodeBucket:
+    Type: String
+  AgentCodeKey:
+    Type: String
+    Default: copilot/agent.zip
+  InjectorCodeKey:
+    Type: String
+    Default: copilot/injector.zip
+
+  # --- models ---
+  ModelId:
+    Type: String
+    Default: anthropic.claude-sonnet-4-6
+  EmbeddingModelArn:
+    Type: String
+    Description: e.g. arn:aws:bedrock:ap-northeast-2::foundation-model/amazon.titan-embed-text-v2:0
+
+  # --- S3 Vectors (pre-created by kb/setup_s3vectors.sh) ---
+  VectorBucketArn:
+    Type: String
+  VectorIndexArn:
+    Type: String
+
+Resources:
+  ###########
+  # Knowledge Base data bucket + service role + KB + data source
+  ###########
+  KbDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub copilot-kb-data-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  KbServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: kb-access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource: !Ref EmbeddingModelArn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt KbDataBucket.Arn
+                  - !Sub ${KbDataBucket.Arn}/*
+              - Effect: Allow
+                Action:
+                  - s3vectors:GetVectors
+                  - s3vectors:PutVectors
+                  - s3vectors:QueryVectors
+                  - s3vectors:GetIndex
+                  - s3vectors:ListVectors
+                  - s3vectors:DeleteVectors
+                Resource:
+                  - !Ref VectorBucketArn
+                  - !Ref VectorIndexArn
+
+  KnowledgeBase:
+    Type: AWS::Bedrock::KnowledgeBase
+    Properties:
+      Name: !Sub copilot-postmortems-${AWS::StackName}
+      RoleArn: !GetAtt KbServiceRole.Arn
+      KnowledgeBaseConfiguration:
+        Type: VECTOR
+        VectorKnowledgeBaseConfiguration:
+          EmbeddingModelArn: !Ref EmbeddingModelArn
+      StorageConfiguration:
+        Type: S3_VECTORS
+        S3VectorsConfiguration:
+          IndexArn: !Ref VectorIndexArn
+          VectorBucketArn: !Ref VectorBucketArn
+
+  KbDataSource:
+    Type: AWS::Bedrock::DataSource
+    Properties:
+      Name: danluu-postmortems
+      KnowledgeBaseId: !Ref KnowledgeBase
+      DataSourceConfiguration:
+        Type: S3
+        S3Configuration:
+          BucketArn: !GetAtt KbDataBucket.Arn
+          InclusionPrefixes:
+            - danluu/
+
+  ###########
+  # Incident timeline (agent memory, M3)
+  ###########
+  IncidentTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub incident-timeline-${AWS::StackName}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: ts
+          AttributeType: N
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+        - AttributeName: ts
+          KeyType: RANGE
+
+  ###########
+  # Fault-injector Lambda (Node, in-VPC SQL helper)
+  ###########
+  InjectorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  InjectorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: coffee-fault-injector
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Timeout: 30
+      MemorySize: 256
+      Role: !GetAtt InjectorRole.Arn
+      Code:
+        S3Bucket: !Ref AgentCodeBucket
+        S3Key: !Ref InjectorCodeKey
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          APP_DB_HOST: !Ref DbHost
+          APP_DB_USER: !Ref DbUser
+          APP_DB_PASSWORD: !Ref DbPassword
+          APP_DB_NAME: !Ref DbName
+
+  ###########
+  # Agent Lambda (Python / Strands, in-VPC)
+  ###########
+  AgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: copilot-agent
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # Bedrock model invocation (Claude) + KB retrieve
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - bedrock:Retrieve
+                Resource: !GetAtt KnowledgeBase.KnowledgeBaseArn
+              # read service logs (diagnose)
+              - Effect: Allow
+                Action:
+                  - logs:FilterLogEvents
+                  - logs:GetLogEvents
+                  - logs:DescribeLogStreams
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/coffee-*
+              # apply_recovery: invoke injector + redeploy coffee functions
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt InjectorFunction.Arn
+              - Effect: Allow
+                Action:
+                  - lambda:UpdateFunctionCode
+                  - lambda:GetFunction
+                Resource:
+                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-customer
+                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-employee
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub arn:aws:s3:::${CodeBucket}/*
+              # memory timeline
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                Resource: !GetAtt IncidentTable.Arn
+
+  AgentFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: strands-incident-copilot
+      Runtime: python3.12
+      Handler: agent.handler.handler
+      Timeout: 120
+      MemorySize: 1024
+      Role: !GetAtt AgentRole.Arn
+      Code:
+        S3Bucket: !Ref AgentCodeBucket
+        S3Key: !Ref AgentCodeKey
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          MODEL_ID: !Ref ModelId
+          KB_ID: !Ref KnowledgeBase
+          INCIDENT_TABLE: !Ref IncidentTable
+          INJECTOR_FN: !Ref InjectorFunction
+          COFFEE_CUSTOMER_API: !Ref CustomerApi
+          COFFEE_EMPLOYEE_API: !Ref EmployeeApi
+          COFFEE_CUSTOMER_FN: coffee-customer
+          COFFEE_EMPLOYEE_FN: coffee-employee
+          CODE_BUCKET: !Ref CodeBucket
+          CUSTOMER_CLEAN_KEY: !Ref CustomerCleanKey
+          EMPLOYEE_CLEAN_KEY: !Ref EmployeeCleanKey
+
+  ###########
+  # HTTP API for the agent (/chat)
+  ###########
+  AgentApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: strands-incident-copilot
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - "*"
+        AllowHeaders:
+          - "*"
+
+  AgentIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref AgentApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt AgentFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  AgentRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AgentApi
+      RouteKey: POST /chat
+      Target: !Sub integrations/${AgentIntegration}
+
+  AgentStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref AgentApi
+      StageName: $default
+      AutoDeploy: true
+
+  AgentInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AgentFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AgentApi}/*/*
+
+  ###########
+  # Chat web (S3 + CloudFront)
+  ###########
+  ChatBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub copilot-chat-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  ChatOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub copilot-chat-oac-${AWS::StackName}
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  ChatDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: ChatS3Origin
+            DomainName: !GetAtt ChatBucket.RegionalDomainName
+            OriginAccessControlId: !Ref ChatOAC
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: ChatS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+  ChatBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ChatBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${ChatBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${ChatDistribution}
+
+Outputs:
+  AgentApiUrl:
+    Description: Agent chat endpoint base (POST /chat)
+    Value: !GetAtt AgentApi.ApiEndpoint
+  ChatSiteUrl:
+    Description: Chat web UI (CloudFront)
+    Value: !Sub https://${ChatDistribution.DomainName}
+  ChatBucketName:
+    Value: !Ref ChatBucket
+  KnowledgeBaseId:
+    Value: !Ref KnowledgeBase
+  DataSourceId:
+    Value: !GetAtt KbDataSource.DataSourceId
+  KbDataBucketName:
+    Value: !Ref KbDataBucket
+  InjectorFunctionName:
+    Value: !Ref InjectorFunction
+  AgentFunctionName:
+    Value: !Ref AgentFunction
