@@ -12,9 +12,9 @@ from .system_prompt import SYSTEM_PROMPT
 from .tools_operational import OPERATIONAL_TOOLS
 from .memory import MEMORY_TOOLS
 
-# Default model = Claude Haiku 4.5 (on-demand requires an inference profile, so the
-# global cross-region profile id). Override via the MODEL_ID env var.
-DEFAULT_MODEL_ID = os.environ.get("MODEL_ID", "global.anthropic.claude-haiku-4-5-20251001-v1:0")
+# Default model = Amazon Nova 2 Lite (on-demand requires an inference profile, so
+# the global cross-region profile id). Override via the MODEL_ID env var.
+DEFAULT_MODEL_ID = os.environ.get("MODEL_ID", "global.amazon.nova-2-lite-v1:0")
 REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
 
 
