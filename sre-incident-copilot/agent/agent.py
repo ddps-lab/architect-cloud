@@ -12,9 +12,9 @@ from .system_prompt import SYSTEM_PROMPT
 from .tools_operational import OPERATIONAL_TOOLS
 from .memory import MEMORY_TOOLS
 
-# Default model = Amazon Nova 2 Lite (on-demand requires an inference profile, so
-# the global cross-region profile id). Override via the MODEL_ID env var.
-DEFAULT_MODEL_ID = os.environ.get("MODEL_ID", "global.amazon.nova-2-lite-v1:0")
+# Default model = Amazon Nova Micro (on-demand requires an inference profile; this
+# one uses the APAC regional profile). Override via the MODEL_ID env var.
+DEFAULT_MODEL_ID = os.environ.get("MODEL_ID", "apac.amazon.nova-micro-v1:0")
 REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
 
 

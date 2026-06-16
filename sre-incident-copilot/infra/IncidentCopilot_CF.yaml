@@ -57,7 +57,7 @@ Parameters:
   # --- models ---
   ModelId:
     Type: String
-    Default: global.amazon.nova-2-lite-v1:0
+    Default: apac.amazon.nova-micro-v1:0
     Description: inference profile id (on-demand requires a profile; needs Bedrock model access)
   StartModule:
     Type: String
