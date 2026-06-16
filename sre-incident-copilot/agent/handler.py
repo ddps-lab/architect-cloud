@@ -18,17 +18,16 @@ _MODULE = os.environ.get("MODULE", "m4")
 # Build once per container (reused across warm invocations).
 _AGENT = build_agent_for_module(_MODULE)
 
-_CORS = {
-    "Access-Control-Allow-Origin": os.environ.get("CORS_ORIGIN", "*"),
-    "Access-Control-Allow-Headers": "content-type",
-    "Access-Control-Allow-Methods": "POST,OPTIONS",
-}
+_CORS_NOTE = "CORS is handled by the Lambda Function URL Cors config (open: *)."
 
 
 def _resp(status, body):
+    # Do NOT add Access-Control-* headers here: the Function URL Cors config
+    # already injects them. Adding them again produces duplicate
+    # Access-Control-Allow-Origin headers, which browsers reject.
     return {
         "statusCode": status,
-        "headers": {"content-type": "application/json", **_CORS},
+        "headers": {"content-type": "application/json"},
         "body": json.dumps(body),
     }
 
