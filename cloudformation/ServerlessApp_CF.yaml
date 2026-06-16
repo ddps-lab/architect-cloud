@@ -1,6 +1,36 @@
 AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Serverless coffee-supplier app. Provisions VPC, RDS MySQL, two Lambda
+  microservices (customer / employee) inside the VPC, an HTTP API Gateway,
+  and S3 + CloudFront for the two static frontends.
+
+Parameters:
+  CodeBucket:
+    Type: String
+    Description: S3 bucket holding the packaged Lambda zips (created by utils/package_lambda.sh)
+  CustomerCodeKey:
+    Type: String
+    Default: lambda/customer.zip
+    Description: S3 key of the customer Lambda package
+  EmployeeCodeKey:
+    Type: String
+    Default: lambda/employee.zip
+    Description: S3 key of the employee Lambda package
+  DBUsername:
+    Type: String
+    Default: nodeapp
+  DBPassword:
+    Type: String
+    Default: lab-password
+    NoEcho: true
+  DBName:
+    Type: String
+    Default: COFFEE
 
 Resources:
+  ###########
+  # VPC
+  ###########
   LabVPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -35,10 +65,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref LabVPC
-      AvailabilityZone:
-        Fn::Select:
-          - 0
-          - Fn::GetAZs: ""
+      AvailabilityZone: !Select [0, !GetAZs ""]
       CidrBlock: 10.16.10.0/24
       MapPublicIpOnLaunch: true
       Tags:
@@ -49,19 +76,13 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref LabVPC
-      AvailabilityZone:
-        Fn::Select:
-          - 1
-          - Fn::GetAZs: ""
+      AvailabilityZone: !Select [1, !GetAZs ""]
       CidrBlock: 10.16.20.0/24
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: Public Subnet2
 
-  ###########
-  # Public Routing
-  ###########
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     DependsOn:
@@ -85,24 +106,18 @@ Resources:
 
   PublicSubnetRouteAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    DependsOn:
-      - PublicRouteTable
-      - PublicSubnet1
     Properties:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet1
 
   PublicSubnetRouteAssociation2:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    DependsOn:
-      - PublicRouteTable
-      - PublicSubnet2
     Properties:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet2
 
   ###########
-  # Private Subnets
+  # Private Subnets (Lambda + RDS)
   ###########
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
@@ -110,10 +125,7 @@ Resources:
     Properties:
       VpcId: !Ref LabVPC
       CidrBlock: 10.16.30.0/24
-      AvailabilityZone: !Select
-        - 0
-        - !GetAZs
-          Ref: AWS::Region
+      AvailabilityZone: !Select [0, !GetAZs ""]
       Tags:
         - Key: Name
           Value: Private Subnet 1
@@ -124,17 +136,11 @@ Resources:
     Properties:
       VpcId: !Ref LabVPC
       CidrBlock: 10.16.40.0/24
-      AvailabilityZone: !Select
-        - 1
-        - !GetAZs
-          Ref: AWS::Region
+      AvailabilityZone: !Select [1, !GetAZs ""]
       Tags:
         - Key: Name
           Value: Private Subnet 2
 
-  ###########
-  # Private Routing
-  ###########
   PrivateRouteTable1:
     Type: AWS::EC2::RouteTable
     DependsOn: LabVPC
@@ -155,35 +161,63 @@ Resources:
 
   PrivateRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    DependsOn:
-      - PrivateRouteTable1
-      - PrivateSubnet1
     Properties:
       RouteTableId: !Ref PrivateRouteTable1
       SubnetId: !Ref PrivateSubnet1
 
   PrivateRouteTableAssociation2:
     Type: AWS::EC2::SubnetRouteTableAssociation
-    DependsOn:
-      - PrivateRouteTable2
-      - PrivateSubnet2
     Properties:
       RouteTableId: !Ref PrivateRouteTable2
       SubnetId: !Ref PrivateSubnet2
 
   ###########
-  # RDS Database
+  # Security Groups
+  ###########
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lambda functions ENI security group
+      VpcId: !Ref LabVPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: LambdaSG
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS MySQL security group (only Lambda may connect)
+      VpcId: !Ref LabVPC
+      Tags:
+        - Key: Name
+          Value: DBSG
+
+  # Allow MySQL only from the Lambda SG (kept as a separate resource to avoid a circular dependency)
+  DBIngressFromLambda:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+  ###########
+  # RDS Database (private)
   ###########
   DBSubnetGroup:
-    Type: "AWS::RDS::DBSubnetGroup"
+    Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: "Subnet group for RDS"
+      DBSubnetGroupDescription: Private subnet group for RDS
       SubnetIds:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
 
   MyDBInstance:
-    Type: "AWS::RDS::DBInstance"
+    Type: AWS::RDS::DBInstance
     DeletionPolicy: Delete
     DependsOn: AttachGateway
     Properties:
@@ -191,34 +225,314 @@ Resources:
       DBInstanceClass: db.t3.micro
       Engine: mysql
       EngineVersion: "8.0.42"
-      MasterUsername: nodeapp
-      MasterUserPassword: lab-password
-      DBName: COFFEE
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBName: !Ref DBName
       DBSubnetGroupName: !Ref DBSubnetGroup
       MultiAZ: false
       AllocatedStorage: 20
       MaxAllocatedStorage: 1000
       StorageType: gp2
       StorageEncrypted: true
-      PubliclyAccessible: true
+      PubliclyAccessible: false
       VPCSecurityGroups:
-        - !Ref MyDBSecurityGroup
+        - !Ref DBSecurityGroup
       Tags:
         - Key: Name
           Value: MyDatabaseInstance
 
-  MyDBSecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
+  ###########
+  # Lambda
+  ###########
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      GroupDescription: Security group for RDS instance
-      VpcId: !Ref LabVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          CidrIp: 0.0.0.0/0
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  CustomerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: coffee-customer
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Timeout: 30
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CustomerCodeKey
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+      Environment:
+        Variables:
+          APP_DB_HOST: !GetAtt MyDBInstance.Endpoint.Address
+          APP_DB_USER: !Ref DBUsername
+          APP_DB_PASSWORD: !Ref DBPassword
+          APP_DB_NAME: !Ref DBName
+
+  EmployeeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: coffee-employee
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Timeout: 30
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref EmployeeCodeKey
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+      Environment:
+        Variables:
+          APP_DB_HOST: !GetAtt MyDBInstance.Endpoint.Address
+          APP_DB_USER: !Ref DBUsername
+          APP_DB_PASSWORD: !Ref DBPassword
+          APP_DB_NAME: !Ref DBName
+
+  ###########
+  # API Gateway (HTTP API) - customer
+  ###########
+  CustomerApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: coffee-customer-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - "*"
+        AllowHeaders:
+          - "*"
+
+  CustomerIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref CustomerApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt CustomerFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  CustomerRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref CustomerApi
+      RouteKey: $default
+      Target: !Sub integrations/${CustomerIntegration}
+
+  CustomerStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref CustomerApi
+      StageName: $default
+      AutoDeploy: true
+
+  CustomerInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CustomerFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${CustomerApi}/*/*
+
+  ###########
+  # API Gateway (HTTP API) - employee
+  ###########
+  EmployeeApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: coffee-employee-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - "*"
+        AllowHeaders:
+          - "*"
+
+  EmployeeIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref EmployeeApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt EmployeeFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  EmployeeRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref EmployeeApi
+      RouteKey: $default
+      Target: !Sub integrations/${EmployeeIntegration}
+
+  EmployeeStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref EmployeeApi
+      StageName: $default
+      AutoDeploy: true
+
+  EmployeeInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref EmployeeFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${EmployeeApi}/*/*
+
+  ###########
+  # S3 + CloudFront - frontends
+  ###########
+  CustomerBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub coffee-customer-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  EmployeeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub coffee-employee-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FrontendOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub coffee-frontend-oac-${AWS::StackName}
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  CustomerDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: home.html
+        Origins:
+          - Id: CustomerS3Origin
+            DomainName: !GetAtt CustomerBucket.RegionalDomainName
+            OriginAccessControlId: !Ref FrontendOAC
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: CustomerS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          # AWS managed "CachingOptimized" cache policy
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+
+  EmployeeDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: home.html
+        Origins:
+          - Id: EmployeeS3Origin
+            DomainName: !GetAtt EmployeeBucket.RegionalDomainName
+            OriginAccessControlId: !Ref FrontendOAC
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: EmployeeS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+
+  CustomerBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CustomerBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${CustomerBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CustomerDistribution}
+
+  EmployeeBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref EmployeeBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${EmployeeBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${EmployeeDistribution}
 
 Outputs:
   DBInstanceEndpoint:
-    Description: "The endpoint address of the RDS instance"
+    Description: RDS MySQL endpoint
     Value: !GetAtt MyDBInstance.Endpoint.Address
+  CustomerApiUrl:
+    Description: Customer API base URL (use as YOUR_API_URL for s3_customer)
+    Value: !GetAtt CustomerApi.ApiEndpoint
+  EmployeeApiUrl:
+    Description: Employee API base URL (use as YOUR_API_URL for s3_employee)
+    Value: !GetAtt EmployeeApi.ApiEndpoint
+  CustomerBucketName:
+    Description: S3 bucket for the customer frontend
+    Value: !Ref CustomerBucket
+  EmployeeBucketName:
+    Description: S3 bucket for the employee frontend
+    Value: !Ref EmployeeBucket
+  CustomerSiteUrl:
+    Description: CloudFront URL for the customer frontend
+    Value: !Sub https://${CustomerDistribution.DomainName}
+  EmployeeSiteUrl:
+    Description: CloudFront URL for the employee frontend
+    Value: !Sub https://${EmployeeDistribution.DomainName}
