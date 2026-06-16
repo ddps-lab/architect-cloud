@@ -59,6 +59,10 @@ Parameters:
     Type: String
     Default: apac.amazon.nova-micro-v1:0
     Description: inference profile id (on-demand requires a profile; needs Bedrock model access)
+  BedrockRegion:
+    Type: String
+    Default: ap-northeast-2
+    Description: region for Bedrock model invocation (logs/lambda/KB stay in the stack region)
   StartModule:
     Type: String
     Default: m1
@@ -292,6 +296,7 @@ Resources:
           PORT: "8000"
           MODULE: !Ref StartModule
           MODEL_ID: !Ref ModelId
+          BEDROCK_REGION: !Ref BedrockRegion
           KB_ID: !Ref KnowledgeBase
           INCIDENT_TABLE: !Ref IncidentTable
           INJECTOR_FN: !Ref InjectorFunction

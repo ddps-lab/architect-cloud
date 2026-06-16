@@ -16,10 +16,14 @@ from .memory import MEMORY_TOOLS
 # one uses the APAC regional profile). Override via the MODEL_ID env var.
 DEFAULT_MODEL_ID = os.environ.get("MODEL_ID", "apac.amazon.nova-micro-v1:0")
 REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
+# Bedrock model invocation can target a different region than the rest of the
+# stack (logs/lambda/dynamodb/KB stay in AWS_REGION). Set BEDROCK_REGION to e.g.
+# us-east-1 to use models only offered there.
+BEDROCK_REGION = os.environ.get("BEDROCK_REGION", REGION)
 
 
 def build_model(model_id: str = DEFAULT_MODEL_ID) -> BedrockModel:
-    return BedrockModel(model_id=model_id, region_name=REGION, temperature=0.2)
+    return BedrockModel(model_id=model_id, region_name=BEDROCK_REGION, temperature=0.2)
 
 
 def build_agent(
