@@ -16,7 +16,7 @@ out() { aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGI
   --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
 
 BUCKET="$(out ChatBucketName)"
-API="$(out AgentApiUrl)"
+API="$(out AgentFunctionUrl)"
 SITE="$(out ChatSiteUrl)"
 
 echo ">> uploading chat SPA to s3://$BUCKET"
@@ -33,4 +33,4 @@ if [ -n "$DIST" ]; then
 fi
 
 echo ">> chat site : $SITE"
-echo ">> agent API : $API   (붙여넣고 ⚙︎설정에서 저장)"
+echo ">> agent Function URL : $API   (붙여넣고 ⚙︎설정에서 저장 — 스트리밍 지원)"

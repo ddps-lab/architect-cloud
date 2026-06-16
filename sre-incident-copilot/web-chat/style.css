@@ -60,5 +60,11 @@ button.ghost { background: transparent; color: var(--muted); border: 1px solid #
 .msg.user { align-self: flex-end; background: var(--user); }
 .msg.agent { align-self: flex-start; background: var(--agent); border: 1px solid #233040; }
 .msg.error { align-self: flex-start; background: #2a1a1a; color: var(--err); border: 1px solid #4a2020; }
-.msg.typing { color: var(--muted); font-style: italic; }
+.msg .badge { display: inline-block; font-size: 11px; color: var(--muted); border: 1px solid #2a3340; border-radius: 6px; padding: 1px 6px; margin-bottom: 6px; }
+.msg .badge.hidden { display: none; }
+.msg .trace { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.msg .trace:empty { margin: 0; }
+.msg .tool { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: #9fd0ff; background: #11202e; border: 1px solid #1d3346; border-radius: 6px; padding: 4px 8px; word-break: break-all; }
+.msg .body { white-space: pre-wrap; }
+.msg .body.thinking { color: var(--muted); font-style: italic; }
 .composer { display: flex; gap: 8px; padding: 16px 20px; background: var(--panel); border-top: 1px solid #2a3340; }

@@ -276,15 +276,20 @@ Resources:
     Properties:
       FunctionName: strands-incident-copilot
       Runtime: python3.12
-      Handler: agent.handler.handler
+      Handler: run.sh
       Timeout: 300
       MemorySize: 1024
       Role: !GetAtt AgentRole.Arn
+      Layers:
+        - !Sub arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerX86:28
       Code:
         S3Bucket: !Ref AgentCodeBucket
         S3Key: !Ref AgentCodeKey
       Environment:
         Variables:
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
+          AWS_LWA_INVOKE_MODE: response_stream
+          PORT: "8000"
           MODULE: !Ref StartModule
           MODEL_ID: !Ref ModelId
           KB_ID: !Ref KnowledgeBase
@@ -350,7 +355,7 @@ Resources:
     Properties:
       TargetFunctionArn: !Ref AgentFunction
       AuthType: NONE
-      InvokeMode: BUFFERED
+      InvokeMode: RESPONSE_STREAM
       Cors:
         AllowOrigins:
           - "*"
