@@ -10,10 +10,13 @@ the DynamoDB timeline (M3). MCP is not loaded in Lambda (see mcp_setup.py).
 import json
 import os
 
-from .agent import build_agent
+from .agent import build_agent_for_module
 
+# Module level is set by the MODULE env var so the lab can progress (m1..m5) by
+# just updating the Lambda's environment — no code change needed.
+_MODULE = os.environ.get("MODULE", "m4")
 # Build once per container (reused across warm invocations).
-_AGENT = build_agent(enable_tools=True, enable_memory=True)
+_AGENT = build_agent_for_module(_MODULE)
 
 _CORS = {
     "Access-Control-Allow-Origin": os.environ.get("CORS_ORIGIN", "*"),
@@ -59,4 +62,4 @@ def handler(event, context):
     except Exception as e:  # noqa: BLE001
         return _resp(500, {"error": f"agent error: {type(e).__name__}: {e}"})
 
-    return _resp(200, {"reply": reply, "session_id": session_id})
+    return _resp(200, {"reply": reply, "session_id": session_id, "module": _MODULE})

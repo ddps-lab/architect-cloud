@@ -12,9 +12,9 @@ from .system_prompt import SYSTEM_PROMPT
 from .tools_operational import OPERATIONAL_TOOLS
 from .memory import MEMORY_TOOLS
 
-# claude-sonnet-4-6 in ap-northeast-2 (override via env; an inference-profile id
-# such as "apac.anthropic.claude-sonnet-4-6" may be required depending on account).
-DEFAULT_MODEL_ID = os.environ.get("MODEL_ID", "anthropic.claude-sonnet-4-6")
+# claude-sonnet-4-6 in ap-northeast-2. On-demand requires an inference profile,
+# so default to the global cross-region profile (override via env).
+DEFAULT_MODEL_ID = os.environ.get("MODEL_ID", "global.anthropic.claude-sonnet-4-6")
 REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
 
 
@@ -27,6 +27,7 @@ def build_agent(
     enable_memory: bool = True,
     mcp_tools=None,
     model_id: str = DEFAULT_MODEL_ID,
+    callback_handler=None,
 ) -> Agent:
     """Build an agent with a selectable set of capabilities.
 
@@ -35,6 +36,7 @@ def build_agent(
         enable_memory: include the DynamoDB incident-timeline tools.
         mcp_tools: optional list of MCP tools (e.g. AWS docs) to add (M5).
         model_id: Bedrock model id / inference profile.
+        callback_handler: Strands callback handler; default None (no stream print).
     """
     tools = []
     if enable_tools:
@@ -44,4 +46,30 @@ def build_agent(
     if mcp_tools:
         tools += list(mcp_tools)
 
-    return Agent(model=build_model(model_id), system_prompt=SYSTEM_PROMPT, tools=tools)
+    return Agent(
+        model=build_model(model_id),
+        system_prompt=SYSTEM_PROMPT,
+        tools=tools,
+        callback_handler=callback_handler,
+    )
+
+
+# Capability matrix per lab module — the Lambda flips MODULE to progress.
+MODULE_SPECS = {
+    "m1": dict(enable_tools=False, enable_memory=False),  # skeleton only
+    "m2": dict(enable_tools=True, enable_memory=False),   # + operational tools
+    "m3": dict(enable_tools=True, enable_memory=True),    # + memory
+    "m4": dict(enable_tools=True, enable_memory=True),    # KB on (via kb_search)
+    "m5": dict(enable_tools=True, enable_memory=True),    # + MCP (added by caller)
+}
+
+
+def build_agent_for_module(module: str, mcp_tools=None, callback_handler=None) -> Agent:
+    """Build the agent at a given lab module level (m1..m5)."""
+    spec = MODULE_SPECS.get(module, MODULE_SPECS["m4"])
+    return build_agent(
+        enable_tools=spec["enable_tools"],
+        enable_memory=spec["enable_memory"],
+        mcp_tools=mcp_tools,
+        callback_handler=callback_handler,
+    )

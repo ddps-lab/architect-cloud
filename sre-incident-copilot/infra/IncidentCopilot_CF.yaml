@@ -57,7 +57,13 @@ Parameters:
   # --- models ---
   ModelId:
     Type: String
-    Default: anthropic.claude-sonnet-4-6
+    Default: global.anthropic.claude-sonnet-4-6
+    Description: inference profile id (on-demand for sonnet-4-6 requires a profile)
+  StartModule:
+    Type: String
+    Default: m1
+    AllowedValues: [m1, m2, m3, m4, m5]
+    Description: lab module level the agent starts at (flip later via set_module.sh)
   EmbeddingModelArn:
     Type: String
     Description: e.g. arn:aws:bedrock:ap-northeast-2::foundation-model/amazon.titan-embed-text-v2:0
@@ -221,7 +227,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
         - PolicyName: copilot-agent
           PolicyDocument:
@@ -277,12 +283,9 @@ Resources:
       Code:
         S3Bucket: !Ref AgentCodeBucket
         S3Key: !Ref AgentCodeKey
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroupId
-        SubnetIds: !Ref PrivateSubnetIds
       Environment:
         Variables:
+          MODULE: !Ref StartModule
           MODEL_ID: !Ref ModelId
           KB_ID: !Ref KnowledgeBase
           INCIDENT_TABLE: !Ref IncidentTable
