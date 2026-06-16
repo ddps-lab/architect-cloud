@@ -23,7 +23,6 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from .agent import build_agent_for_module
 
 _MODULE = os.environ.get("MODULE", "m4")
-_AGENT = build_agent_for_module(_MODULE)
 
 app = FastAPI()
 
@@ -49,13 +48,15 @@ async def chat(request: Request):
     if not message:
         return JSONResponse({"error": "message is required"}, status_code=400)
 
-    prompt = f"[session_id={session_id}]\n{message}"
+    # Build per request so the S3 session manager loads this session's prior
+    # state (M3+). For m1/m2 (no memory) this is just a fresh stateless agent.
+    agent = build_agent_for_module(_MODULE, session_id=session_id)
 
     async def gen():
         yield _sse({"type": "module", "module": _MODULE})
         seen_tools = set()
         try:
-            async for event in _AGENT.stream_async(prompt):
+            async for event in agent.stream_async(message):
                 # A tool is being invoked — surface it as a trace entry.
                 tu = event.get("current_tool_use") if isinstance(event, dict) else None
                 if tu and tu.get("name"):

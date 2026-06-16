@@ -160,23 +160,17 @@ Resources:
             - danluu/
 
   ###########
-  # Incident timeline (agent memory, M3)
+  # Session store (agent memory, M3) — Strands S3SessionManager
   ###########
-  IncidentTable:
-    Type: AWS::DynamoDB::Table
+  SessionBucket:
+    Type: AWS::S3::Bucket
     Properties:
-      TableName: !Sub incident-timeline-${AWS::StackName}
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: session_id
-          AttributeType: S
-        - AttributeName: ts
-          AttributeType: N
-      KeySchema:
-        - AttributeName: session_id
-          KeyType: HASH
-        - AttributeName: ts
-          KeyType: RANGE
+      BucketName: !Sub copilot-sessions-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
 
   ###########
   # Fault-injector Lambda (Node, in-VPC SQL helper)
@@ -269,11 +263,16 @@ Resources:
                 Action: s3:GetObject
                 Resource: !Sub arn:aws:s3:::${CodeBucket}/*
               # memory timeline
+              # session memory (Strands S3SessionManager)
               - Effect: Allow
                 Action:
-                  - dynamodb:PutItem
-                  - dynamodb:Query
-                Resource: !GetAtt IncidentTable.Arn
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt SessionBucket.Arn
+                  - !Sub ${SessionBucket.Arn}/*
 
   AgentFunction:
     Type: AWS::Lambda::Function
@@ -298,7 +297,7 @@ Resources:
           MODEL_ID: !Ref ModelId
           BEDROCK_REGION: !Ref BedrockRegion
           KB_ID: !Ref KnowledgeBase
-          INCIDENT_TABLE: !Ref IncidentTable
+          SESSION_BUCKET: !Ref SessionBucket
           INJECTOR_FN: !Ref InjectorFunction
           COFFEE_CUSTOMER_API: !Ref CustomerApi
           COFFEE_EMPLOYEE_API: !Ref EmployeeApi

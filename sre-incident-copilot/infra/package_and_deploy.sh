@@ -76,6 +76,15 @@ aws cloudformation deploy \
     "VectorIndexArn=${VECTOR_INDEX_ARN}"
 
 rm -rf "$INJ" "$AG" /tmp/injector.zip /tmp/agent.zip
+# CloudFormation does NOT re-pull Lambda code when the S3 key is unchanged, so
+# force both functions to the freshly uploaded zips.
+echo ">> forcing latest code onto the functions"
+aws lambda update-function-code --function-name coffee-fault-injector --region "$REGION" \
+  --s3-bucket "$AGENT_CODE_BUCKET" --s3-key "copilot/injector.zip" --query LastModified --output text
+aws lambda wait function-updated --function-name coffee-fault-injector --region "$REGION"
+aws lambda update-function-code --function-name strands-incident-copilot --region "$REGION" \
+  --s3-bucket "$AGENT_CODE_BUCKET" --s3-key "copilot/agent.zip" --query LastModified --output text
+aws lambda wait function-updated --function-name strands-incident-copilot --region "$REGION"
 echo ">> deploy complete. Outputs:"
 aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \
   --query "Stacks[0].Outputs" --output table
