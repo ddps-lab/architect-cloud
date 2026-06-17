@@ -49,9 +49,8 @@ echo "   layer: $LAYER_ARN"
 
 echo ">> packaging agent FUNCTION code (all project .py — console-editable)"
 AG="$(mktemp -d)"
-cp -r "$COPILOT/lambda_src" "$AG/lambda_src"      # 프레임워크 + agent_app (함수 코드에 포함)
-cp "$COPILOT/run.sh" "$AG/run.sh"
-chmod +x "$AG/run.sh"
+cp -r "$COPILOT/lambda_src" "$AG/lambda_src"      # 프레임워크 + agent_app + run.sh (함수 코드)
+chmod +x "$AG/lambda_src/run.sh"
 ( cd "$AG" && zip -qr /tmp/agent.zip . -x "*.pyc" "*/__pycache__/*" )
 aws s3 cp /tmp/agent.zip "s3://$AGENT_CODE_BUCKET/copilot/agent.zip" --region "$REGION"
 

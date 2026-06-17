@@ -278,7 +278,7 @@ Resources:
     Properties:
       FunctionName: strands-incident-copilot
       Runtime: python3.12
-      Handler: run.sh
+      Handler: lambda_src/run.sh
       Timeout: 300
       MemorySize: 1024
       Role: !GetAtt AgentRole.Arn
