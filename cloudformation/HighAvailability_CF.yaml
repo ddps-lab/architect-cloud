@@ -1,14 +1,13 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   High availability coffee-supplier app. Provisions a multi-AZ VPC, RDS MySQL,
-  an Application Load Balancer, and an Auto Scaling Group of EC2 app servers
-  (private subnets) that bootstrap themselves via user data.
+  an Application Load Balancer, and an Auto Scaling Group of EC2 app servers.
 
 Parameters:
   AppServerAMI:
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
-    Description: Ubuntu 24.04 AMI for the app servers (resolved from SSM)
+    Type: AWS::EC2::Image::Id
+    Default: ami-0af78fbae4afb1a43
+    Description: Pre-baked coffee app AMI ID (shared from the root account)
   DBUsername:
     Type: String
     Default: admin
@@ -370,7 +369,7 @@ Resources:
       LaunchTemplateName: MonolithicAppServerLT
       LaunchTemplateData:
         ImageId: !Ref AppServerAMI
-        InstanceType: t2.micro
+        InstanceType: t4g.small
         IamInstanceProfile:
           Name: !Ref AppServerInstanceProfile
         SecurityGroupIds:
@@ -380,13 +379,6 @@ Resources:
             - |
               #!/bin/bash -xe
               exec > /var/log/userdata.log 2>&1
-              apt-get update -y
-              apt-get install -y nodejs npm git mysql-client unzip wget
-              cd /home/ubuntu
-              git clone https://github.com/ddps-lab/architect-cloud.git
-              chown ubuntu -R /home/ubuntu/architect-cloud/monolithic_code
-              cd /home/ubuntu/architect-cloud/monolithic_code
-              npm install
 
               export RDS_DB_EP=${RDSEndpoint}
               echo "export RDS_DB_EP=${!RDS_DB_EP}" >> /home/ubuntu/.bashrc
