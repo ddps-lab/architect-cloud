@@ -32,7 +32,7 @@ from bs4 import BeautifulSoup
 README_URL = "https://raw.githubusercontent.com/danluu/post-mortems/master/README.md"
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(HERE, "data")
-UA = {"User-Agent": "ddps-sre-incident-copilot-lab/1.0 (KB ingestion; contact: lab)"}
+UA = {"User-Agent": "ddps-agent-sre-lab/1.0 (KB ingestion; contact: lab)"}
 
 # A markdown bullet like: [Company](https://url). Description text...
 ENTRY_RE = re.compile(r"^\s*\[([^\]]+)\]\((https?://[^)]+)\)\.?\s*(.*)$")

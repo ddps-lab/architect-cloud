@@ -16,7 +16,7 @@ FAULT="${1:?Usage: inject.sh <f1|f2|f3|f4|all> [region]}"
 REGION="${2:-${AWS_REGION:-ap-northeast-2}}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SRC="$REPO_ROOT/lambda_code/microservice"
-BROKEN="$REPO_ROOT/sre-incident-copilot/faults/broken"
+BROKEN="$REPO_ROOT/agent_sre/faults/broken"
 INJECTOR="coffee-fault-injector"
 
 invoke_injector() {

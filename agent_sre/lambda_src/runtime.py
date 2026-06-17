@@ -1,8 +1,8 @@
 """채팅 런타임 (FastAPI + SSE). 학생은 건드리지 않습니다.
 
-학생이 작성한 solution.build_agent(session_id) 를 호출해 에이전트를 만들고,
-도구 호출 트레이스와 답변 토큰을 SSE로 스트리밍합니다. Lambda Web Adapter 뒤에서
-Function URL(RESPONSE_STREAM)로 서빙됩니다.
+학생이 작성한 lambda_src/agent_app.py 의 build_agent(session_id) 를 호출해
+에이전트를 만들고, 도구 호출 트레이스와 답변 토큰을 SSE로 스트리밍합니다.
+Lambda Web Adapter 뒤에서 Function URL(RESPONSE_STREAM)로 서빙됩니다.
 
 POST /chat  body: {"message": "...", "session_id": "..."}  -> text/event-stream
 GET  /      -> readiness
@@ -12,7 +12,7 @@ import json
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 
-import solution  # 🎓 학생이 작성하는 파일
+from . import agent_app  # 🎓 학생이 Lambda 콘솔에서 편집하는 파일 (lambda_src/agent_app.py)
 
 app = FastAPI()
 
@@ -41,7 +41,7 @@ async def chat(request: Request):
     async def gen():
         seen_tools = set()
         try:
-            agent = solution.build_agent(session_id)
+            agent = agent_app.build_agent(session_id)
             async for event in agent.stream_async(message):
                 tu = event.get("current_tool_use") if isinstance(event, dict) else None
                 if tu and tu.get("name"):

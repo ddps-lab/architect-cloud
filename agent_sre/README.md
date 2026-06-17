@@ -4,12 +4,13 @@ danluu 회고 모음을 지식베이스로 삼아, 한 개의 AWS Strands 에이
 마이크로서비스의 장애를 **탐지 → 진단 → 복구 → 검증**하도록 만드는 실습입니다.
 학생은 **`solution.py` 한 파일만** 수정하며, 모듈을 하나씩 켜 갑니다.
 
-## 학생용: `solution.py` 하나만 고치면 됩니다
+## 학생용: `lambda_src/agent_app.py` 한 파일을 Lambda 콘솔에서 편집
 
-`solution.py` 안에서 모듈별로 **줄 앞의 `#`(주석)을 지워** 기능을 켭니다. 저장 후
-배포(아래 "배포")하고, 채팅 웹에서 같은 질문을 던져 차이를 확인하세요.
+Lambda 콘솔 → `strands-incident-copilot` → 코드 탭에서 **`lambda_src/agent_app.py`**
+를 열고, 모듈별로 **줄 앞의 `#`(주석)을 지워** 기능을 켭니다. [Deploy] 후 채팅
+웹에서 같은 질문을 던져 차이를 확인하세요.
 
-| 모듈 | 켜는 법 (`solution.py`) | 효과 |
+| 모듈 | 켜는 법 (`lambda_src/agent_app.py`) | 효과 |
 |------|------------------------|------|
 | 1 골격 | 기본 상태 (이미 켜짐) | 절차만 앎 → 도구 없어 증거를 요청하고 멈춤 |
 | 2 도구 | `tools=tools.ALL` 주석 해제 | 실제 로그 조회·스모크·복구 도구 사용 |
@@ -17,27 +18,30 @@ danluu 회고 모음을 지식베이스로 삼아, 한 개의 AWS Strands 에이
 | 4 지식베이스 | `tools=tools.ALL + [knowledge_base.search]` | 실제 회고를 회사명·URL로 인용 |
 | 5 AWS 문서 | `... + aws_docs.load()` | AWS 공식문서 MCP로 최신 정보 인용 |
 
-어려운 부분(서버·스트리밍·도구 구현·AWS 연결)은 전부 `coffee_sre/` 안에 있고,
-학생은 보지 않아도 됩니다.
+서드파티 라이브러리(Strands·fastapi·mcp 등)는 Lambda **레이어**에 들어 있어 함수
+코드에는 보이지 않습니다. 프로젝트 코드(`lambda_src/`)는 전부 함수 코드 안에
+있어 콘솔에서 그대로 보고 편집할 수 있습니다(함수 코드 ~10KB, 인라인 편집 가능).
 
 ## 구조
 
 ```
-sre-incident-copilot/
-├── solution.py          🎓 학생이 수정하는 유일한 파일 (build_agent)
-├── coffee_sre/          🔒 프레임워크(숨김) — 학생 무관
+agent_sre/
+├── lambda_src/          함수 코드 (콘솔 편집 가능, 모든 프로젝트 .py)
+│   ├── agent_app.py     🎓 학생이 편집하는 파일 (build_agent)
+│   ├── runtime.py       FastAPI/SSE 서버 (agent_app.build_agent 호출)
 │   ├── prompt.py        SYSTEM_PROMPT
-│   ├── model.py         model()  — Bedrock 모델
+│   ├── model.py         model() — Bedrock 모델
 │   ├── tools.py         tools.ALL — smoke/logs/run_sql/redeploy
 │   ├── knowledge_base.py knowledge_base.search — 회고 KB 검색
-│   ├── aws_docs.py      aws_docs.load() — AWS 문서 MCP (Lambda 번들)
-│   ├── memory.py        memory(session_id) — S3 세션 기억
-│   └── runtime.py       FastAPI/SSE 서버 (solution.build_agent 호출)
+│   ├── aws_docs.py      aws_docs.load() — AWS 문서 MCP
+│   └── memory.py        memory(session_id) — S3 세션 기억
+├── run.sh               LWA 부팅 (uvicorn lambda_src.runtime:app)
 ├── faults/              장애 주입/복구 (inject.sh / restore.sh / injector Lambda)
 ├── kb/                  danluu 크롤러 + S3 Vectors 셋업
 ├── infra/               IncidentCopilot CloudFormation + package_and_deploy
 └── web-chat/            채팅 SPA (스트리밍 + 도구 트레이스 + 마크다운)
 ```
+> 서드파티 의존성은 `package_and_deploy.sh` 가 만든 Lambda 레이어(`copilot-deps`)에 있습니다.
 
 ## 사전 준비
 
@@ -48,7 +52,7 @@ sre-incident-copilot/
 ## 배포 (강사/최초 1회 + 학생이 solution.py 바꿀 때마다)
 
 ```sh
-cd sre-incident-copilot
+cd agent_sre
 
 # (최초) 벡터스토어 + KB 적재
 ./kb/setup_s3vectors.sh

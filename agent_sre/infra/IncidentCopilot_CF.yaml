@@ -50,6 +50,9 @@ Parameters:
   AgentCodeKey:
     Type: String
     Default: copilot/agent.zip
+  DepsLayerArn:
+    Type: String
+    Description: ARN of the deps+framework layer (built/published by package_and_deploy.sh)
   InjectorCodeKey:
     Type: String
     Default: copilot/injector.zip
@@ -281,6 +284,7 @@ Resources:
       Role: !GetAtt AgentRole.Arn
       Layers:
         - !Sub arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerX86:28
+        - !Ref DepsLayerArn
       Code:
         S3Bucket: !Ref AgentCodeBucket
         S3Key: !Ref AgentCodeKey

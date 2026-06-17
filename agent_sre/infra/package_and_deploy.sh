@@ -16,7 +16,7 @@ set -euo pipefail
 REGION="${1:-${AWS_REGION:-ap-northeast-2}}"
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-COPILOT="$REPO_ROOT/sre-incident-copilot"
+COPILOT="$REPO_ROOT/agent_sre"
 COFFEE_STACK="coffee-serverless"
 STACK="incident-copilot"
 CODE_BUCKET="coffee-lambda-code-${ACCOUNT}-apne2"   # reused: holds clean coffee zips
@@ -32,17 +32,26 @@ cp -r "$COPILOT/faults/injector_lambda/." "$INJ/"
 ( cd "$INJ" && npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 && zip -qr /tmp/injector.zip . )
 aws s3 cp /tmp/injector.zip "s3://$AGENT_CODE_BUCKET/copilot/injector.zip" --region "$REGION"
 
-echo ">> packaging agent Lambda (Python, linux wheels)"
+echo ">> building deps LAYER (third-party libs only, linux wheels)"
+LYR="$(mktemp -d)"
+mkdir -p "$LYR/python"
+python3 -m pip install -r "$COPILOT/requirements.txt" -t "$LYR/python" \
+  --platform manylinux2014_x86_64 --python-version 3.12 --only-binary=:all: --quiet
+# boto3/botocore are provided by the Lambda runtime — drop to stay under limits.
+rm -rf "$LYR/python"/boto3 "$LYR/python"/botocore "$LYR/python"/boto3-* "$LYR/python"/botocore-*
+( cd "$LYR" && zip -qr /tmp/layer.zip . -x "*.pyc" "*/__pycache__/*" )
+aws s3 cp /tmp/layer.zip "s3://$AGENT_CODE_BUCKET/copilot/layer.zip" --region "$REGION"
+echo ">> publishing layer version"
+LAYER_ARN="$(aws lambda publish-layer-version --layer-name copilot-deps --region "$REGION" \
+  --content "S3Bucket=${AGENT_CODE_BUCKET},S3Key=copilot/layer.zip" \
+  --compatible-runtimes python3.12 --query LayerVersionArn --output text)"
+echo "   layer: $LAYER_ARN"
+
+echo ">> packaging agent FUNCTION code (all project .py — console-editable)"
 AG="$(mktemp -d)"
-cp -r "$COPILOT/coffee_sre" "$AG/coffee_sre"
-cp "$COPILOT/solution.py" "$AG/solution.py"
+cp -r "$COPILOT/lambda_src" "$AG/lambda_src"      # 프레임워크 + agent_app (함수 코드에 포함)
 cp "$COPILOT/run.sh" "$AG/run.sh"
 chmod +x "$AG/run.sh"
-python3 -m pip install -r "$COPILOT/requirements.txt" -t "$AG" \
-  --platform manylinux2014_x86_64 --python-version 3.12 --only-binary=:all: --quiet
-# boto3/botocore are provided by the Lambda runtime — drop them to stay well under
-# the 250MB unzipped limit.
-rm -rf "$AG"/boto3 "$AG"/botocore "$AG"/boto3-* "$AG"/botocore-*
 ( cd "$AG" && zip -qr /tmp/agent.zip . -x "*.pyc" "*/__pycache__/*" )
 aws s3 cp /tmp/agent.zip "s3://$AGENT_CODE_BUCKET/copilot/agent.zip" --region "$REGION"
 
@@ -75,11 +84,12 @@ aws cloudformation deploy \
     "EmployeeApi=${EMP_API}" \
     "CodeBucket=${CODE_BUCKET}" \
     "AgentCodeBucket=${AGENT_CODE_BUCKET}" \
+    "DepsLayerArn=${LAYER_ARN}" \
     "EmbeddingModelArn=${EMB_ARN}" \
     "VectorBucketArn=${VECTOR_BUCKET_ARN}" \
     "VectorIndexArn=${VECTOR_INDEX_ARN}"
 
-rm -rf "$INJ" "$AG" /tmp/injector.zip /tmp/agent.zip
+rm -rf "$INJ" "$AG" "$LYR" /tmp/injector.zip /tmp/agent.zip /tmp/layer.zip
 # CloudFormation does NOT re-pull Lambda code when the S3 key is unchanged, so
 # force both functions to the freshly uploaded zips.
 echo ">> forcing latest code onto the functions"

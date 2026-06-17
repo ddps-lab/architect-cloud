@@ -1,15 +1,16 @@
 # =============================================================================
-#  SRE Incident Copilot — 학생 실습 파일  (이 파일 하나만 수정합니다)
+#  SRE Incident Copilot — 에이전트 코드  (이 파일을 Lambda 콘솔에서 편집합니다)
 # =============================================================================
 #
-#  진행 방법: 모듈을 하나씩 "주석(#)을 지워서" 켜고, 저장 → 배포 → 채팅으로 확인.
-#  나머지 어려운 부분(서버/도구/AWS 연결)은 coffee_sre 안에 이미 다 들어 있습니다.
+#  이 파일이 곧 람다 함수 코드입니다. Lambda 콘솔의 코드 편집기에서 열어,
+#  모듈을 하나씩 "줄 앞의 #(샵)을 지워" 켜고 [Deploy] 한 뒤 채팅으로 확인하세요.
 #
-#  각 줄 앞의 #(샵)을 지우면 그 기능이 "켜집니다".
+#  어려운 부분(서버/도구/AWS 연결)은 같은 패키지 lambda_src 안에 들어 있습니다.
+#  여러분은 아래 build_agent 안의 주석만 풀면 됩니다.
 # =============================================================================
 
 from strands import Agent
-from coffee_sre import tools, knowledge_base, aws_docs, memory, model, SYSTEM_PROMPT
+from lambda_src import tools, knowledge_base, aws_docs, memory, model, SYSTEM_PROMPT
 
 
 def build_agent(session_id):

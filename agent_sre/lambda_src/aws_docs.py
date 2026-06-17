@@ -1,6 +1,6 @@
 """AWS 공식문서 MCP 도구 로더 (완성품).
 
-학생은 solution.py 에서 `aws_docs.load()` 를 도구 목록에 더하면 됩니다.
+학생은 agent_app.py 에서 `aws_docs.load()` 를 도구 목록에 더하면 됩니다.
 MCP 서버(awslabs.aws-documentation-mcp-server)는 Lambda 패키지에 번들되어 있어
 `python -m ...` 서브프로세스로 한 번 띄워 재사용합니다.
 """
