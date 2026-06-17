@@ -14,7 +14,7 @@ from strands.models import BedrockModel
 from strands.session.s3_session_manager import S3SessionManager
 
 from .system_prompt import SYSTEM_PROMPT
-from .tools_operational import OPERATIONAL_TOOLS
+from .tools_operational import OPERATIONAL_TOOLS, KB_TOOLS
 
 # Default model = Amazon Nova Micro (on-demand requires an inference profile; this
 # one uses the APAC regional profile). Override via the MODEL_ID env var.
@@ -35,6 +35,7 @@ def build_model(model_id: str = DEFAULT_MODEL_ID) -> BedrockModel:
 def build_agent(
     enable_tools: bool = True,
     enable_memory: bool = True,
+    enable_kb: bool = True,
     mcp_tools=None,
     model_id: str = DEFAULT_MODEL_ID,
     callback_handler=None,
@@ -43,8 +44,9 @@ def build_agent(
     """Build an agent with a selectable set of capabilities.
 
     Args:
-        enable_tools: include operational tools (smoke/logs/kb_search/run_sql/redeploy).
+        enable_tools: include operational tools (smoke/logs/run_sql/redeploy).
         enable_memory: persist/restore conversation state via S3SessionManager.
+        enable_kb: include kb_search (post-mortem KB retrieval, M4+).
         mcp_tools: optional list of MCP tools (e.g. AWS docs) to add (M5).
         model_id: Bedrock model id / inference profile.
         callback_handler: Strands callback handler; default None (no stream print).
@@ -53,6 +55,8 @@ def build_agent(
     tools = []
     if enable_tools:
         tools += OPERATIONAL_TOOLS
+    if enable_kb:
+        tools += KB_TOOLS
     if mcp_tools:
         tools += list(mcp_tools)
 
@@ -76,11 +80,11 @@ def build_agent(
 
 # Capability matrix per lab module — the Lambda flips MODULE to progress.
 MODULE_SPECS = {
-    "m1": dict(enable_tools=False, enable_memory=False),  # skeleton only
-    "m2": dict(enable_tools=True, enable_memory=False),   # + operational tools
-    "m3": dict(enable_tools=True, enable_memory=True),    # + memory (S3 session)
-    "m4": dict(enable_tools=True, enable_memory=True),    # KB on (via kb_search)
-    "m5": dict(enable_tools=True, enable_memory=True),    # + MCP (added by caller)
+    "m1": dict(enable_tools=False, enable_memory=False, enable_kb=False),  # skeleton only
+    "m2": dict(enable_tools=True, enable_memory=False, enable_kb=False),   # + operational tools
+    "m3": dict(enable_tools=True, enable_memory=True, enable_kb=False),    # + memory (S3 session)
+    "m4": dict(enable_tools=True, enable_memory=True, enable_kb=True),     # + KB retrieval (kb_search)
+    "m5": dict(enable_tools=True, enable_memory=True, enable_kb=True),     # + MCP (added by caller)
 }
 
 
@@ -90,6 +94,7 @@ def build_agent_for_module(module: str, mcp_tools=None, callback_handler=None, s
     return build_agent(
         enable_tools=spec["enable_tools"],
         enable_memory=spec["enable_memory"],
+        enable_kb=spec["enable_kb"],
         mcp_tools=mcp_tools,
         callback_handler=callback_handler,
         session_id=session_id,

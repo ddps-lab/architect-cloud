@@ -169,4 +169,6 @@ def redeploy_service(service: str) -> str:
     return f"redeployed canonical build to {fn}"
 
 
-OPERATIONAL_TOOLS = [run_smoke_test, get_logs, kb_search, run_sql, redeploy_service]
+OPERATIONAL_TOOLS = [run_smoke_test, get_logs, run_sql, redeploy_service]
+# KB retrieval is a separate capability, enabled only at M4+.
+KB_TOOLS = [kb_search]
