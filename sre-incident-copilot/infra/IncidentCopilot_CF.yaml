@@ -256,6 +256,7 @@ Resources:
                 Action:
                   - lambda:UpdateFunctionCode
                   - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
                 Resource:
                   - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-customer
                   - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-employee
