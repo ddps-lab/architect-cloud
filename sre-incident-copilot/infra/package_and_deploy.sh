@@ -39,6 +39,9 @@ cp "$COPILOT/run.sh" "$AG/run.sh"
 chmod +x "$AG/run.sh"
 python3 -m pip install -r "$COPILOT/requirements.txt" -t "$AG" \
   --platform manylinux2014_x86_64 --python-version 3.12 --only-binary=:all: --quiet
+# boto3/botocore are provided by the Lambda runtime — drop them to stay well under
+# the 250MB unzipped limit.
+rm -rf "$AG"/boto3 "$AG"/botocore "$AG"/boto3-* "$AG"/botocore-*
 ( cd "$AG" && zip -qr /tmp/agent.zip . -x "*.pyc" "*/__pycache__/*" )
 aws s3 cp /tmp/agent.zip "s3://$AGENT_CODE_BUCKET/copilot/agent.zip" --region "$REGION"
 

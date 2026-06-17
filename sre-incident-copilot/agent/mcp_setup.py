@@ -52,3 +52,24 @@ def aws_docs_client() -> MCPClient:
             )
         )
     )
+
+
+def aws_docs_client_bundled() -> MCPClient:
+    """AWS docs MCP client for the deployed Lambda.
+
+    The MCP server package (awslabs.aws-documentation-mcp-server) is bundled into
+    the Lambda zip, so we launch it as a Python module subprocess (no uvx needed).
+    The agent Lambda has internet egress, so the server can fetch AWS docs.
+    """
+    python_bin = os.environ.get("MCP_PYTHON", "python3.12")
+    env = dict(os.environ)
+    env["AWS_DOCUMENTATION_PARTITION"] = os.environ.get("AWS_DOCUMENTATION_PARTITION", "aws")
+    return MCPClient(
+        lambda: stdio_client(
+            StdioServerParameters(
+                command=python_bin,
+                args=["-m", "awslabs.aws_documentation_mcp_server.server"],
+                env=env,
+            )
+        )
+    )
