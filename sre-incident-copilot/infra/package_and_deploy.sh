@@ -34,7 +34,8 @@ aws s3 cp /tmp/injector.zip "s3://$AGENT_CODE_BUCKET/copilot/injector.zip" --reg
 
 echo ">> packaging agent Lambda (Python, linux wheels)"
 AG="$(mktemp -d)"
-cp -r "$COPILOT/agent" "$AG/agent"
+cp -r "$COPILOT/coffee_sre" "$AG/coffee_sre"
+cp "$COPILOT/solution.py" "$AG/solution.py"
 cp "$COPILOT/run.sh" "$AG/run.sh"
 chmod +x "$AG/run.sh"
 python3 -m pip install -r "$COPILOT/requirements.txt" -t "$AG" \

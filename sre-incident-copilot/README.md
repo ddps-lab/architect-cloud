@@ -1,142 +1,108 @@
-# SRE Incident Copilot
+# SRE Incident Copilot (실습)
 
-A single AWS Strands agent that **detects → diagnoses → recovers → verifies** real
-incidents seeded into the `coffee` microservices, learning the 8 Strands modules
-along the way. Diagnosis is grounded in the [danluu/post-mortems](https://github.com/danluu/post-mortems)
-collection (Bedrock Knowledge Base over S3 Vectors), so the agent cites the real
-incident whose **mechanism** matches the live failure and applies that incident's
-actual remediation.
+danluu 회고 모음을 지식베이스로 삼아, 한 개의 AWS Strands 에이전트가 `coffee`
+마이크로서비스의 장애를 **탐지 → 진단 → 복구 → 검증**하도록 만드는 실습입니다.
+학생은 **`solution.py` 한 파일만** 수정하며, 모듈을 하나씩 켜 갑니다.
 
-> Target system: the already-deployed `coffee-serverless` stack
-> (API Gateway → Lambda `coffee-customer`/`coffee-employee` → RDS MySQL).
+## 학생용: `solution.py` 하나만 고치면 됩니다
 
-## Architecture
+`solution.py` 안에서 모듈별로 **줄 앞의 `#`(주석)을 지워** 기능을 켭니다. 저장 후
+배포(아래 "배포")하고, 채팅 웹에서 같은 질문을 던져 차이를 확인하세요.
+
+| 모듈 | 켜는 법 (`solution.py`) | 효과 |
+|------|------------------------|------|
+| 1 골격 | 기본 상태 (이미 켜짐) | 절차만 앎 → 도구 없어 증거를 요청하고 멈춤 |
+| 2 도구 | `tools=tools.ALL` 주석 해제 | 실제 로그 조회·스모크·복구 도구 사용 |
+| 3 기억 | `session_manager=memory(session_id)` 주석 해제 | 이전 대화를 기억(턴 넘어 회상) |
+| 4 지식베이스 | `tools=tools.ALL + [knowledge_base.search]` | 실제 회고를 회사명·URL로 인용 |
+| 5 AWS 문서 | `... + aws_docs.load()` | AWS 공식문서 MCP로 최신 정보 인용 |
+
+어려운 부분(서버·스트리밍·도구 구현·AWS 연결)은 전부 `coffee_sre/` 안에 있고,
+학생은 보지 않아도 됩니다.
+
+## 구조
 
 ```
- user ─► CloudFront ─► S3 (chat SPA)   ── save agent API URL, chat ──┐
-                                                                     ▼
-              ┌──────────────► HTTP API ─► Agent Lambda (Strands, VPC) ─┬─► Bedrock (Claude Sonnet 4.6)
-              │                                                         ├─► Bedrock KB (danluu, S3 Vectors)
-   alarms/peers┘                                                        ├─► AWS Docs MCP (M5, local)
-                                                                        ├─► tools: get_logs / run_smoke_test
-                                                                        │          kb_search / apply_recovery
-                                                                        ├─► DynamoDB incident timeline (memory)
-                                                                        └─► fault-injector Lambda (VPC, SQL)
-                                                                                   │
-   coffee-customer / coffee-employee (VPC) ──────────────────────────► RDS MySQL (COFFEE)
+sre-incident-copilot/
+├── solution.py          🎓 학생이 수정하는 유일한 파일 (build_agent)
+├── coffee_sre/          🔒 프레임워크(숨김) — 학생 무관
+│   ├── prompt.py        SYSTEM_PROMPT
+│   ├── model.py         model()  — Bedrock 모델
+│   ├── tools.py         tools.ALL — smoke/logs/run_sql/redeploy
+│   ├── knowledge_base.py knowledge_base.search — 회고 KB 검색
+│   ├── aws_docs.py      aws_docs.load() — AWS 문서 MCP (Lambda 번들)
+│   ├── memory.py        memory(session_id) — S3 세션 기억
+│   └── runtime.py       FastAPI/SSE 서버 (solution.build_agent 호출)
+├── faults/              장애 주입/복구 (inject.sh / restore.sh / injector Lambda)
+├── kb/                  danluu 크롤러 + S3 Vectors 셋업
+├── infra/               IncidentCopilot CloudFormation + package_and_deploy
+└── web-chat/            채팅 SPA (스트리밍 + 도구 트레이스 + 마크다운)
 ```
 
-## Layout
+## 사전 준비
 
-| Path | What |
-|------|------|
-| `agent/` | Strands agent: `system_prompt` (M1), `tools_operational` (M2), `memory` (M3), `mcp_setup` (M5), `agent`, `handler` (M6) |
-| `kb/` | `ingest_danluu.py` (crawl post-mortems → S3 → KB), `setup_s3vectors.sh` |
-| `faults/` | `inject.sh` / `restore.sh`, `injector_lambda/` (in-VPC SQL), `broken/` (F2/F3 variants) |
-| `infra/` | `IncidentCopilot_CF.yaml`, `package_and_deploy.sh` |
-| `web-chat/` | chat SPA + `deploy_chat.sh` |
-| `steps/` | `run_local.py` — module before/after demos |
+- `coffee-serverless` 스택 배포됨(`../cloudformation/ServerlessApp_CF.yaml`).
+- Bedrock 모델 액세스 활성화(ap-northeast-2). 기본 모델은 `MODEL_ID` 환경변수로 변경.
+- 로컬: AWS CLI, Python 3.12, Node 18+, `zip`.
 
-## Prerequisites
-
-- `coffee-serverless` stack deployed (see `../cloudformation/ServerlessApp_CF.yaml`).
-- Bedrock model access enabled in `ap-northeast-2` for **Claude Sonnet 4.6** and
-  **Titan Text Embeddings v2** (Bedrock console → Model access).
-- Local: AWS CLI, Python 3.12, Node 18+, `zip`. For M5 MCP: `uv`/`uvx`.
-
-## Deploy (ordered)
+## 배포 (강사/최초 1회 + 학생이 solution.py 바꿀 때마다)
 
 ```sh
 cd sre-incident-copilot
 
-# 1) Vector store
+# (최초) 벡터스토어 + KB 적재
 ./kb/setup_s3vectors.sh
-export VECTOR_BUCKET_ARN=...   # printed above
-export VECTOR_INDEX_ARN=...
-
-# 2) Agent + injector + KB + API + chat infra
-./infra/package_and_deploy.sh                 # deploys the "incident-copilot" stack
-
-# 3) Knowledge base content (crawl danluu originals, then ingest)
-python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
-python kb/ingest_danluu.py crawl              # writes kb/data/
-KB=$(aws cloudformation describe-stacks --stack-name incident-copilot \
-      --query "Stacks[0].Outputs[?OutputKey=='KnowledgeBaseId'].OutputValue" --output text)
-DS=$(aws cloudformation describe-stacks --stack-name incident-copilot \
-      --query "Stacks[0].Outputs[?OutputKey=='DataSourceId'].OutputValue" --output text)
-BK=$(aws cloudformation describe-stacks --stack-name incident-copilot \
-      --query "Stacks[0].Outputs[?OutputKey=='KbDataBucketName'].OutputValue" --output text)
-python kb/ingest_danluu.py sync --bucket "$BK" --kb-id "$KB" --ds-id "$DS"
-
-# 4) Chat web
+export VECTOR_BUCKET_ARN=...   VECTOR_INDEX_ARN=...   # 위 출력값
+./infra/package_and_deploy.sh                 # incident-copilot 스택 + 코드
+python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements-dev.txt
+python kb/ingest_danluu.py crawl
+python kb/ingest_danluu.py sync --bucket <KbDataBucket> --kb-id <KB_ID> --ds-id <DS_ID>
 ./web-chat/deploy_chat.sh
+
+# (이후) solution.py 를 고친 뒤 다시 배포하려면:
+./infra/package_and_deploy.sh
 ```
 
-Then open the printed **ChatSiteUrl**, click ⚙︎ 설정, paste the **AgentFunctionUrl**
-(the Lambda Function URL — it has no 30s API Gateway cap, needed for multi-step
-agent runs), save, and chat.
+배포가 끝나면 출력된 **ChatSiteUrl**을 열고, ⚙︎설정에 **AgentFunctionUrl**을
+붙여넣어 저장한 뒤 대화합니다.
 
-> The agent runs several tool calls + model rounds per turn (often >30s), so the
-> chat path uses the Lambda Function URL rather than API Gateway. Public Function
-> URLs in this account require BOTH `lambda:InvokeFunctionUrl` and
-> `lambda:InvokeFunction` granted to `*` (both are in the template).
+> 모델 교체: `aws lambda update-function-configuration --function-name
+> strands-incident-copilot --environment '{"Variables":{...,"MODEL_ID":"..."}}'`
+> (inference profile 필요. 예: `global.anthropic.claude-sonnet-4-6`)
 
-## Run an incident (lab loop)
+## 인시던트 실습 루프
 
 ```sh
-# Seed a fault (Appendix A) into the live coffee services
-./faults/inject.sh f1        # integer PK overflow (Strava/Basecamp/GitHub)
-# ./faults/inject.sh f2      # pool exhaustion (incident.io)
-# ./faults/inject.sh f3      # unbounded /tmp logging -> ENOSPC (Tarsnap)
-# ./faults/inject.sh f4      # column type change (CircleCI)
+# 장애 주입 (Appendix A — 실제 회고 메커니즘 재현)
+./faults/inject.sh f1      # 정수 PK 오버플로 (Strava/Basecamp/GitHub)
+# ./faults/inject.sh f2    # 커넥션 풀 고갈 (incident.io)
+# ./faults/inject.sh f3    # 무한 로컬 로그 → ENOSPC (Tarsnap)
+# ./faults/inject.sh f4    # 컬럼 타입 변경 (CircleCI)
 
-# In the chat UI:  "customer/employee 서비스가 이상해. 조사해줘."
-#   -> agent runs smoke test, pulls logs, cites the matching post-mortem,
-#      proposes the fix. Tell it "적용해" to apply (apply_recovery), then it verifies.
+# 채팅에서: "employee 서비스가 이상해. 조사해줘."
+#   -> (모듈에 따라) 로그 진단 → 회고 인용 → 복구 제안. "적용해" 라고 하면 적용 후 검증.
 
-# Restore everything to healthy when done
-./faults/restore.sh
+./faults/restore.sh        # 끝나면 원상복구
 ```
 
-## Module before/after (what each Strands capability buys)
+## 장애 ↔ 실제 사건 (Appendix A)
 
-| Module | Before | After |
-|--------|--------|-------|
-| M1 skeleton | guesses a cause | follows detect→diagnose→recover→verify, asks for evidence |
-| M2 tools | can't see logs | pulls real logs, runs smoke tests |
-| M3 memory | forgets earlier findings | recalls the incident timeline (DynamoDB) |
-| M4 KB RAG | generic advice / hallucination | cites the real incident (company + URL) + its remediation |
-| M5 MCP (AWS Docs) | stale/hallucinated post-cutoff AWS info | current docs + source URLs |
-| M6 API + web | runs only on a laptop | team/alarms call it; chat web UI |
+| 장애 | 시그니처 | 실제 사건 | 복구 |
+|------|----------|-----------|------|
+| F1 | `Duplicate entry '2147483647'` / `Out of range value for 'id'` | Strava/Basecamp/GitHub | `id` → BIGINT |
+| F2 | 부하 시 `Task timed out` | incident.io | 불필요 트랜잭션 제거·풀 상향 |
+| F3 | `ENOSPC: no space left on device` | Tarsnap | 로컬 /tmp 로깅 제거 |
+| F4 | `ER_TRUNCATED_WRONG_VALUE` | CircleCI 2021-11 | 관대한 읽기 + 백필 |
 
-Try the before/after locally with `steps/run_local.py --module m1|m2|m3|m4|m5`.
+## 안전 & 정리
 
-## Faults ↔ real incidents (Appendix A)
-
-| Fault | Signature | Real incident | Fix |
-|-------|-----------|---------------|-----|
-| F1 | `Out of range value for column 'id'` / `Duplicate entry '2147483647'` | Strava/Basecamp/GitHub | `id` → BIGINT |
-| F2 | `Task timed out` under load | incident.io | drop per-request txn, cache table check, raise pool |
-| F3 | `ENOSPC: no space left on device` | Tarsnap | remove local /tmp logging |
-| F4 | `ER_TRUNCATED_WRONG_VALUE` | CircleCI 2021-11 | lenient read + backfill |
-
-## Safety & cleanup
-
-- `apply_recovery` changes live RDS/Lambda. With the approval gate removed, the
-  **human operator is the gate**: the agent only applies a fix when you tell it to in chat.
-- Fault-injection edits live code/schema — **lab branch only, never merge to prod**.
-  Always run `faults/restore.sh` afterward.
-- Costs: Bedrock calls, S3 Vectors, CloudFront, DynamoDB, Lambda. Tear down:
-
-```sh
-aws s3 rm s3://$(aws cloudformation describe-stacks --stack-name incident-copilot \
-  --query "Stacks[0].Outputs[?OutputKey=='ChatBucketName'].OutputValue" --output text) --recursive
-aws cloudformation delete-stack --stack-name incident-copilot
-# delete the S3 Vectors index + bucket
-aws s3vectors delete-index  --vector-bucket-name <bucket> --index-name postmortems
-aws s3vectors delete-vector-bucket --vector-bucket-name <bucket>
-```
-
-## M8 — wrap-up
-
-After one end-to-end run, write a one-line danluu-style retro: **"[cause]. [fix]."**
+- 복구 도구(`run_sql`/`redeploy_service`)는 라이브 RDS/Lambda를 바꿉니다 —
+  에이전트는 채팅에서 사람이 명시 승인할 때만 적용합니다.
+- 장애 주입은 라이브 코드/스키마를 바꿉니다 — **실습 브랜치 전용**, 끝나면 `restore.sh`.
+- 비용: Bedrock·S3 Vectors·CloudFront·Lambda. 정리:
+  ```sh
+  aws s3 rm s3://<ChatBucket> --recursive
+  aws cloudformation delete-stack --stack-name incident-copilot
+  aws s3vectors delete-index --vector-bucket-name <bucket> --index-name postmortems
+  aws s3vectors delete-vector-bucket --vector-bucket-name <bucket>
+  ```

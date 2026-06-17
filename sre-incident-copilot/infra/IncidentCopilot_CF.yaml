@@ -63,11 +63,6 @@ Parameters:
     Type: String
     Default: ap-northeast-2
     Description: region for Bedrock model invocation (logs/lambda/KB stay in the stack region)
-  StartModule:
-    Type: String
-    Default: m1
-    AllowedValues: [m1, m2, m3, m4, m5]
-    Description: lab module level the agent starts at (flip later via set_module.sh)
   EmbeddingModelArn:
     Type: String
     Description: e.g. arn:aws:bedrock:ap-northeast-2::foundation-model/amazon.titan-embed-text-v2:0
@@ -294,7 +289,6 @@ Resources:
           AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
           AWS_LWA_INVOKE_MODE: response_stream
           PORT: "8000"
-          MODULE: !Ref StartModule
           MODEL_ID: !Ref ModelId
           BEDROCK_REGION: !Ref BedrockRegion
           KB_ID: !Ref KnowledgeBase
