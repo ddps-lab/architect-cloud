@@ -6,7 +6,7 @@ Description: >
 Parameters:
   AppServerAMI:
     Type: AWS::EC2::Image::Id
-    Default: ami-0af78fbae4afb1a43
+    Default: ami-0d30ddf859ead67f9
     Description: Pre-baked coffee app AMI ID (shared from the root account)
   DBUsername:
     Type: String
@@ -379,7 +379,6 @@ Resources:
             - |
               #!/bin/bash -xe
               exec > /var/log/userdata.log 2>&1
-
               export RDS_DB_EP=${RDSEndpoint}
               echo "export RDS_DB_EP=${!RDS_DB_EP}" >> /home/ubuntu/.bashrc
 
