@@ -31,10 +31,10 @@ Lambda 콘솔 → `strands-incident-copilot` → 코드 탭에서 **`lambda_src/
 | 모듈 | 켜는 법 (`lambda_src/agent_app.py`) | 효과 |
 |------|------------------------|------|
 | 1 골격 | 기본 상태 (이미 켜짐) | 절차만 앎 → 도구 없어 증거를 요청하고 멈춤 |
-| 2 도구 | `tools=tools.ALL,` 주석 해제 | 실제 로그 조회·스모크·복구 도구 사용 |
-| 3 기억 | `session_manager=memory(session_id),` 주석 해제 | 이전 대화를 기억(턴 넘어 회상) |
-| 4 지식베이스 | `tools=tools.ALL + [knowledge_base.search],` | 실제 회고를 회사명·URL로 인용 |
-| 5 AWS 문서 | `... + aws_docs.load()` | AWS 공식문서 MCP로 최신 정보 인용 |
+| 2 도구 | `tools=m2_tools.ALL,` 주석 해제 | 실제 로그 조회·스모크·복구 도구 사용 |
+| 3 기억 | `session_manager=m3_memory.memory(session_id),` 주석 해제 | 이전 대화를 기억(턴 넘어 회상) |
+| 4 지식베이스 | `tools=m2_tools.ALL + [m4_knowledge_base.search],` | 실제 회고를 회사명·URL로 인용 |
+| 5 AWS 문서 | `... + m5_aws_docs.load()` | AWS 공식문서 MCP로 최신 정보 인용 |
 
 서드파티 라이브러리(Strands·fastapi·mcp 등)는 Lambda **레이어**에 들어 있어 함수
 코드에는 보이지 않습니다. 프로젝트 코드(`lambda_src/`)는 전부 함수 코드 안에
@@ -47,12 +47,12 @@ agent_sre/
 ├── lambda_src/          함수 코드 (콘솔 편집 가능, 모든 프로젝트 .py)
 │   ├── agent_app.py     🎓 수강생이 편집하는 파일 (build_agent)
 │   ├── runtime.py       FastAPI/SSE 서버 (agent_app.build_agent 호출)
-│   ├── prompt.py        SYSTEM_PROMPT
-│   ├── model.py         model() — Bedrock 모델
-│   ├── tools.py         tools.ALL — smoke/logs/run_sql/redeploy
-│   ├── knowledge_base.py knowledge_base.search — 회고 KB 검색
-│   ├── aws_docs.py      aws_docs.load() — AWS 문서 MCP
-│   ├── memory.py        memory(session_id) — S3 세션 기억
+│   ├── m1_prompt.py     SYSTEM_PROMPT
+│   ├── m1_model.py      model() — Bedrock 모델
+│   ├── m2_tools.py      m2_tools.ALL — smoke/logs/run_sql/redeploy
+│   ├── m3_memory.py     m3_memory.memory(session_id) — S3 세션 기억
+│   ├── m4_knowledge_base.py m4_knowledge_base.search — 회고 KB 검색
+│   ├── m5_aws_docs.py   m5_aws_docs.load() — AWS 문서 MCP
 │   └── run.sh           LWA 부팅 (uvicorn lambda_src.runtime:app)
 ├── infra/
 │   ├── LabBase_CF.yaml         injector + AgentRole + 세션버킷 + 의존성 레이어

@@ -1,7 +1,7 @@
 """대화 기억(메모리) 헬퍼 — Strands S3SessionManager 기반 (완성품).
 
-학생은 agent_app.py 에서 `session_manager=memory(session_id)` 한 줄만 넣으면
-됩니다. 세션 대화 상태가 S3에 자동 저장·복원되어, 호출(턴)을 넘어 기억합니다.
+학생은 agent_app.py 에서 `session_manager=m3_memory.memory(session_id)` 한 줄만
+넣으면 됩니다. 세션 대화 상태가 S3에 자동 저장·복원되어, 호출(턴)을 넘어 기억합니다.
 """
 import os
 

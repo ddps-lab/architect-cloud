@@ -1,4 +1,4 @@
-"""운영 도구 모음 (완성품). 학생은 agent_app.py 에서 `tools.ALL` 로 한 번에 붙입니다.
+"""운영 도구 모음 (완성품). 학생은 agent_app.py 에서 `m2_tools.ALL` 로 한 번에 붙입니다.
 
   run_smoke_test(service)    - 라이브 엔드포인트 상태 확인            [읽기]
   get_logs(service, minutes) - CloudWatch 최근 에러 로그 조회         [읽기]

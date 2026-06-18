@@ -171,10 +171,10 @@ curl -s <FunctionURL>            # {"ok":true}
 | 모듈 | `agent_app.py` 에서 주석 해제할 줄 | 효과 |
 |------|-----------------------------------|------|
 | 1 골격 | (기본) | 도구 없어 증거를 요청하고 멈춤 |
-| 2 도구 | `tools=tools.ALL,` | 실제 로그·스모크·복구 도구 사용 |
-| 3 기억 | `session_manager=memory(session_id),` | 이전 대화를 기억 |
-| 4 지식베이스 | `tools=tools.ALL + [knowledge_base.search],` | 회고를 회사명·URL로 인용 |
-| 5 AWS 문서 | `tools=tools.ALL + [knowledge_base.search] + aws_docs.load(),` | AWS 공식문서 인용 |
+| 2 도구 | `tools=m2_tools.ALL,` | 실제 로그·스모크·복구 도구 사용 |
+| 3 기억 | `session_manager=m3_memory.memory(session_id),` | 이전 대화를 기억 |
+| 4 지식베이스 | `tools=m2_tools.ALL + [m4_knowledge_base.search],` | 회고를 회사명·URL로 인용 |
+| 5 AWS 문서 | `tools=m2_tools.ALL + [m4_knowledge_base.search] + m5_aws_docs.load(),` | AWS 공식문서 인용 |
 
 복구는 채팅에서 **"적용해"** 라고 명시 승인할 때만 실행됩니다. 끝나면 원복:
 ```sh

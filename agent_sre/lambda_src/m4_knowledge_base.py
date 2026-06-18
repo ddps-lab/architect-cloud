@@ -1,6 +1,6 @@
 """회고(post-mortem) 지식베이스 검색 도구 (완성품).
 
-학생은 agent_app.py 에서 `knowledge_base.search` 를 도구 목록에 추가합니다.
+학생은 agent_app.py 에서 `m4_knowledge_base.search` 를 도구 목록에 추가합니다.
 실패 사례의 '메커니즘'으로 검색하면 일치하는 실제 사건을 회사명·URL과 함께
 돌려줍니다.
 """
