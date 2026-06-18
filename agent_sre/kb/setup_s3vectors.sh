@@ -1,8 +1,9 @@
 #!/bin/bash
 ###############################################################################
 # Create the S3 Vectors vector bucket + index used as the Bedrock Knowledge Base
-# vector store. Run BEFORE deploying infra/IncidentCopilot_CF.yaml; pass the
-# printed ARNs as VectorBucketArn / VectorIndexArn parameters.
+# vector store. Run this BEFORE creating the Knowledge Base in the Bedrock
+# console; select the printed Vector bucket / index when choosing the vector
+# store. (수강생 직접 단계 — STUDENT_GUIDE.md 2번)
 #
 # Dimension 1024 + cosine match amazon.titan-embed-text-v2:0. The Bedrock chunk
 # text key is registered as non-filterable metadata (Bedrock convention).
