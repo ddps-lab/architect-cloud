@@ -1,0 +1,7 @@
+# GitHub — Database
+Source: https://github.blog/news-insights/company-news/addressing-githubs-recent-availability-issues/
+Curator summary (danluu/post-mortems): May 9: a connection-saturation config rollout to the Git database triggered a failover; the rollback then failed due to an internal infrastructure error, causing >10h of degraded pull-request/push consistency. May 10: an inefficient GitHub App permissions API endpoint with a retry-on-timeout caller produced a 7× write-latency spike on the auth-token cluster, peaking at 76% token-issuance failure. May 11: a Git database crash auto-failed-over but the read replicas weren't reattached, leaving the primary unable to serve full read load.
+
+--- Original post-mortem text ---
+Mike Hanley is the Chief Security Officer and SVP of Engineering at GitHub. Prior to GitHub, Mike was the Vice President of Security at Duo Security, where he built and led the security research, development, and operations functions. After Duo’s acquisition by Cisco for $2.35 billion in 2018, Mike led the transformation of Cisco’s cloud security framework and later served as CISO for the company. Mike also spent several years at CERT/CC as a Senior Member of the Technical Staff and security researcher focused on applied R&D programs for the US Department of Defense and the Intelligence Community.
+When he’s not talking about security at GitHub, Mike can be found enjoying Ann Arbor, MI with his wife and eight kids.

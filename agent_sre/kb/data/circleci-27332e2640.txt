@@ -1,0 +1,108 @@
+# CircleCI — Uncategorized
+Source: https://discuss.circleci.com/t/postmortem-march-26-april-10-workflow-delay-incidents/30060
+Curator summary (danluu/post-mortems): Slow queries on the MongoDB replica sets backing the build queue caused workflows to back up over a two-week run of incidents. A roughly concurrent minor-version JVM upgrade enabled Docker-awareness by default, which silently shrank thread and connection pools across most JVM services and constrained throughput, masking the underlying MongoDB capacity problem. Tuning thread/connection pools and upsizing MongoDB stabilized the platform after multiple cascading outages on March 26, April 2, April 3, and April 10.
+
+--- Original post-mortem text ---
+Postmortem: March 26 - April 10 Workflow Delay Incidents
+Announcements
+Sara
+April 29, 2019,  5:50pm
+1
+Incident Report
+Between March 26 and April 10, 2019, our platform experienced instability and downtime primarily due to issues with the datastore backing our builds queue. These datastore issues resulted in jobs and workflows that were unable to move through the system, as well as degradation in our public APIs. Resolving this has been our top priority, and we have now experienced platform stability for over 2 weeks. In the interest of transparency, and to help our customers understand what we have learned during our troubleshooting and recovery process, we are sharing this incident report and the actions we are taking to prevent these issues in the future. Thank you for your continued patience and support as our team has worked to improve the stability of our systems. You can also find this report on our
+Status Page here
+.
+Timeline
+On March 26, 2019 at 21:29 UTC we saw delays in workflow processing. While workflows were backing up, we saw degradation at several points in the system. Our first course of action was to scale our production environment. As we continued our investigation into what was causing the degradation, we discovered slow timings across multiple MongoDB replica sets. These replica sets store the majority of our centralized data and their health is critical to the functioning of CircleCI as a whole. As we were attempting to resolve the incident, we scaled up many of our services in an effort to minimize the impact of slow query responses on the overall build throughput of the system. Ultimately, we decided we needed more MongoDB capacity and began to work on upsizing that replica set.
+Around the same time, we updated many services to a new minor version of the JVM to pick up security changes. This update also included improvements for
+docker-awareness
+enabled by default. For most of our services, this inadvertently reduced the size of thread and connection pools and constrained throughput. While we knew MongoDB was experiencing some slowdowns, we were unclear how much impact was coming from the JVM upgrade. The graph below shows the average number of JVM threads per service instance in our fleet.
+wXnYS-qm58S4acx8mtolSKXyGwtS-WY7IAdaVwmjdxaA3fJ7Q-cW6-TIHCI0zvEyC9KMD8AkgrxZyvRm8uJ1IuQDNbHj6U2ARb04kp22EZUwsPQxEzYr_ad13AjTZrclIHSRyYMh
+1596×536
+We continued work to scale up MongoDB, but we believed the JVM upgrade was the bigger issue. Starting the following day (UTC) we disabled Docker detection while tuning our services to ensure our thread and connection pools were appropriately sized. In the meantime, we scaled the number of service instances to compensate. By the end of that week, we had a 40% increase in the number of threads per service instance.
+On April 02, 2019 at 22:52 UTC, job starts were delayed, and we declared another incident. The MongoDB jobs replica set was heavily degraded, causing the API to become unavailable and workflow processors to slow. We scaled some of our sub-systems and restarted several services that were non-responsive. Once we had processed enough jobs and workflows to return our queues to healthy levels, we declared the incident over. From this, we realized the JVM version change was probably not the primary cause of the series of incidents. At the same time this incident was occurring, we put together a team that was completely focused on investigating the instability and remediating the immediate causes.
+On April 03, 2019 at 18:57 UTC, we saw severe degradation of our primary public and private API service. Not only did response time increase, but the deployed API service containers began crashing with Out of Memory errors. We scaled up the number of API service containers to little effect. Our incident team was able to get the queue moving again while SRE continued to investigate the underlying causes of these issues.
+On April 04, 2019 at 22:30 UTC workflows were again slow to start. We found two of our read-only replicas for MongoDB were unresponsive: one for approximately 10 minutes and the other for 42 minutes. The below graphs show stacked bars of operations (by type) for each of the locked MongoDB hosts.
+The unresponsive replicas were accepting requests, but not responding, thus causing queries targeted to these systems to back up, thus slowing down the calling services. Once we restarted the replicas, traffic began to flow again. The job queue began to drain, but because the length of the backlog was much larger than normal, it took nearly an hour to complete. We declared the incident “fixed” once we restarted the replicas and jobs were flowing. This queued job backlog was a source of confusion with customers because we declared the incident resolved when it was evident they still had queued jobs.
+On April 05, 2019 at 18:36 UTC we saw delays in starting workflows. The primary in our MongoDB cluster experienced total saturation for several periods, likely due to high contention. One of our attempts to remediate the MongoDB cluster saturation was to change to a local SSD backed volume, but that did not help with the issue.
+With the help of the MongoDB support team, we were able to determine that our jobs replica set was not only slow but experiencing complete stalls. They suggested that declaring indexes could be at fault, even if those indexes already existed. At CircleCI, when a service that connects to a MongoDB database would start, it would ensure that all indexes were in place. We run a large fleet of service instances so, for example, a deploy of our API would redeclare every index roughly one hundred times. Since creating indexes in MongoDB is idempotent, and not creating an index if it’s already there should be a no operation (noop), we didn’t think much of doing this in many places, mainly because it simplifies integration tests. We incorrectly assumed that ensuring an index that already exists was a cheap operation. It turned out that checking the index requires a database level lock which, while only held for a short period, can cause significant contention.
+Our instructions to create indexes were starving the “
+tickets
+” on their WiredTiger storage backend. Tickets are similar to counting
+semaphores
+or
+bulkheads
+and are used to limit read and write concurrency within MongoDB. The recommended (and default) setting allows for 128 read and write tickets each. Our primaries and replicas were frequently using all of the usable tickets on their instance. Without the available tickets, new commands and queries would block. The combination of database locks from index creation and ticket unavailability meant stalls were frequent and pervasive. We quickly removed the unnecessary index creation and continued with increasing the hardware capacity of our MongoDB instances. We believed that increasing the memory and disk capacity of our MongoDB instances could alleviate ticket problems and remove any stalls not related to index creation.
+In the graphs below, you can see the count of available tickets (light blue for read tickets and dark blue for write tickets) and the amount of time MongoDB is spending in lock acquisition. These graphs are both taken from our primary at the time of the incident.
+On April 10, 2019 at 9:20 UTC we saw delays starting workflows by approximately 3 minutes. Things began to move through the queue normally after a short period. Our application-level metrics did not reveal that the MongoDB primary remained degraded. Its performance improved well enough to serve the lower traffic typical of this time of day but eventually struggled to keep up. Our monitoring of tickets revealed tickets were near the maximum allocation, but some tickets were still available.
+April 10, 2019 at 13:25 UTC we were alerted to sharp increases in multiple queues responsible for job and workflow processing. Our monitoring of MongoDB showed some issues, but nothing that explained the dramatic slowdown. After an hour of investigation and attempted remediation, we observed some additional signs of performance issues exclusively on our primary. Most concerning was the appearance of “application evicted pages,” which indicate that MongoDB is having trouble evicting data. When this reaches a critical state, the database will begin repurposing “application” resources, or resources responsible for serving queries and commands, to complete cache maintenance operations. At approximately 15:00 UTC, we failed over to a secondary instance, which instantly began processing twice as many database operations and eventually grew to process twice that number again.
+What We Learned
+This incident gave us a clear signal that tickets alone could not explain our performance challenges, though some degradation in tickets correlated with our degradation. We could clearly correlate this incident with several metrics from our primary: a decrease in free memory, more failed cache evictions, and a relatively small but visible increase in time spent acquiring shared database level locks. MongoDB support recommended two TCMalloc-related tuning parameter settings which we have subsequently applied. The first was to set the MongoDB parameter
+tcmallocEnableMarkThreadIdle
+to false. The second was to set the TCMalloc environment variable
+TCMALLOC_AGGRESSIVE_DECOMMIT
+to
+y
+. They also recommended upgrading our MongoDB version for additional performance optimizations. We applied these fixes and are taking steps to prepare for the version upgrade.
+Perhaps most importantly, MongoDB support pointed us at the
+tcmalloc.spinlock_total_delay_ns
+MongoDB stat. This stat correlates with the time spent on database operations blocked on memory requests. We’ve
+added support
+into the Datadog Agent to monitor this field and have been using it to track performance.
+Next Steps
+Through our investment internally and with the MongoDB team on understanding the behavior of MongoDB at our scale, we now have better visibility into the leading indicators of degradation and can take corrective action to minimize customer impact.
+When an instance begins to show symptoms of slowdown, we perform failover to a healthy host and restart the slow MongoDB process. When possible, we complete the failover during low-traffic hours which minimizes the interruption to customers. This has alleviated customer-visible symptoms as we continue to have our engineers and MongoDB working to improve performance. We’ve also made improvements at the application level by, for example, eliminating unnecessary operations or pulling subsets of fields rather than entire documents.
+We continue to have a team focused on the reliability of our MongoDB cluster and evaluating our usage patterns. We’ve also increased our metrics gathering and observability capabilities (thank you
+Honeycomb.io
+and DataDog) throughout the system to gain more insight into what specifically about a workload is causing the issues, and detect failure before it’s customer-visible. In the short term, we’re continuing to engage with MongoDB support and preparing for a minor version upgrade of our MongoDB replica sets.
+Ultimately, refactoring the way we store and access portions of our data set in MongoDB will reduce load. Improving our data access and storage at the application level is one of our next steps. We have already made several optimizations to improve application stability, and have a few more in the short term pipeline. Now that we have improved observability and understanding of our data usage, we intend to protect against customer-visible outages caused by issues with this cluster.
+Thank you
+Thank you for your patience and support as we worked to investigate, remediate, and resolve these issues. While we still have ongoing engineering work to better utilize our databases, we are confident that we understand the incidents’ cause, and that the steps we have taken will create headroom for the future. Our top priority is giving you and your team a stable, fast, and secure CI/CD platform. Thank you for your trust, confidence, and business as we continue to improve our service and performance.
+Sincerely,
+The CircleCI Team
+6 Likes
+Related topics
+Topic
+Replies
+Views
+Activity
+Postmortem: Incidents of October 22nd–29th
+Announcements
+0
+1414
+November 15, 2019
+Incident Report: September 27, 2021 - Delays in Workflows
+Announcements
+incident
+,
+post-incident-review
+0
+1452
+October 5, 2021
+Post Incident Report: May 1, 2025 - Delays in starting some jobs
+Announcements
+incident
+,
+post-incident-review
+0
+61
+May 22, 2025
+Post Incident Report: April 4, 2025 - Delays in starting workflows
+Announcements
+incident
+,
+post-incident-review
+0
+85
+April 16, 2025
+Postmortem: May 21, 2021 - Delay in starting Docker Jobs. Machine & remote Docker environments blocked
+Announcements
+incident
+,
+machine-executor
+,
+remote-docker
+0
+1619
+June 3, 2021
+<------>

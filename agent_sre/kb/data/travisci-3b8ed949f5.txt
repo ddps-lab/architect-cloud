@@ -1,0 +1,218 @@
+# TravisCI — Config Errors
+Source: https://www.traviscistatus.com/incidents/z2b3lz2kwcfp
+Curator summary (danluu/post-mortems): Accidental environment variable made tests truncate production database.
+
+--- Original post-mortem text ---
+Major outage on travis-ci.com
+Incident
+Report for
+Travis CI
+Postmortem
+On Tuesday, 13 March 2018,
+travis-ci.com was non-operational
+for around 5.5 hours starting at 12:14 UTC. There was a backlog of builds for another 3.5 hours after the system returned to an operational state.
+This post outlines what happened, and explains what exactly it means for you as a travis-ci.com customer.
+What happened
+On Tuesday, 13 March 2018 at 12:04 UTC a database query was accidentally run against our production database which truncated all tables. The query was blocked for around 10 minutes and finally executed at 12:14 UTC.
+As we responded to alerts immediately following this, our API remained operational for roughly 30 minutes, connected to an almost empty database.
+Whenever anyone signed in to travis-ci.com during this time, they saw blank user profiles. Since their old user records had been wiped from the database, our system created new records for them, with primary keys generated from the existing sequence (PostgreSQL does not reset id sequences on truncate).
+We eventually took the step of taking all applications in our system offline, and the database was restored to its original state some hours later.
+When our system was finally back online, those who had logged in during the 30 minutes between database truncation and our applications going offline found themselves logged in as the wrong users. Their login credentials – in the form of a signed token in localStorage – corresponded to user records created after system restore.
+As brand new customers are not the only accounts to require new user records, because we sync users from GitHub on a regular basis, this meant that both new and existing users at travis-ci.com were affected by this issue.
+To address this situation, all affected tokens were revoked by 14:22 UTC on Wednesday, 14 March.
+We also became aware that once the database was restored, we didn't restart our cron scheduler, causing errors with triggering scheduled cron jobs.
+Regarding Security
+Since the outage we have analysed our application logs for customer accounts that may have been impacted by the token mismatch. We have contacted all customers who were technically affected. A subset of these had no repositories which had run builds on travis-ci.com, and there was no evidence that any customer data was exposed. Another subset had build logs for repositories that were potentially exposed, but our access logs suggested no users accessed build logs during the period of exposure. Another subset were potentially exposed, with our access logs suggesting at least one user was logged in with access to data during the period of exposure.
+We have advised affected customers that if they already encrypt all secrets (passwords, API tokens, sensitive environment variables etc.) using our available encryption features, they are safe from exposure. We have also advised them it would be wise to rotate any credentials stored on travis-ci.com, even if encrypted, and check repositories on travis-ci.com to make sure build logs do not contain other forms of sensitive information, as a precautionary measure.
+Please check your emails for a Security Advisory from us - the subject line should start with "Travis CI Security Advisory:". We have contacted GitHub repository admin users. If you haven't received such an email, then your account has not been impacted. Please do contact
+support@travis-ci.com
+with any questions or concerns– we’ll be happy to assist with whatever questions you might have about this.
+What We Learned
+We have held an internal incident retrospective to learn more about how the data failure occurred, what can be improved on our side to protect against such a failure, and how to better restore and protect data if a similar incident should ever occur.
+It took us a day to uncover the root cause of the original database truncation. Using our API logs, and with information from our upstream provider about the IP address the query originated from, we were able to identify a truncate query run during tests using the
+Database Cleaner
+gem. The shell the tests ran in unknowingly had a DATABASE
+URL environment variable set as our production database. It was an old terminal window in a tmux session that had been used for inspecting production data many days before. The developer returned to this window and executed the test suite with the DATABASE
+URL still set.
+This raised the question of
+why
+, when needing to debug or inspect production data, we connected our development environment to a production database with write access. The answer to this was that our tooling and processes made it difficult to connect to the read-only follower, which is why connecting to the primary database was a common shortcut.
+We realised that while seeking to understand the problem, then quickly applying steps to rectify the situation, we inadvertantly left user-facing applications running. This was an error that resulted in the creation of replicated user ids.
+We omitted turning certain alerts back on - which meant that we were unaware the cron scheduler was not operational.
+We were reminded that our most experienced developers can make inadvertent errors resulting in significant outages.
+On a positive note, we were able to recover our entire travis-ci.com production database with only ~15 minutes of data loss.
+Remediation
+Steps we have taken to avoid accidental database table truncation:
+Revoked the truncate permission on our databases, effectively making it impossible for tables to be truncated.
+Patched our internal spec
+helpers to check for the DATABASE
+URL environment variable.
+Added a
+shell prompt warning
+to our developer tooling to make the shell prompt warn when a DATABASE_URL is set.
+Submitted a
+Pull Request
+to the Database Cleaner gem to safeguard against accidentally using a remote DATABASE_URL.
+Steps we have taken to avoid compounding issues:
+Created an alias for the follower database, to make it easier to find and connect to when testing is required against production data.
+Automated database failover and maintenance to reduce the time and number of manual steps needed to recover from this type of situation.
+In addition to the measures mentioned above, we are planning a number of short and long term improvements that are aimed at making our system more resilient and preventing similar outages from happening.
+Conclusion
+Here at Travis CI we take security very seriously. The data failure we experienced was unprecedented in both scope and size. Unfortunately, when responding we missed some steps which would have reduced the problems that occurred.
+We are incredibly sorry for any inconvenience caused to your business and your developers. We truly value the trust our customers place in us, and look forward to putting the lessons learned to good use in continuing to improve our service.
+Please don't hesitate to contact
+support@travis-ci.com
+with any further questions.
+Posted
+Apr
+03
+,
+2018
+-
+12:37
+UTC
+Resolved
+The backlog has cleared. Systems have resumed normal operational status.
+Posted
+Mar
+13
+,
+2018
+-
+20:59
+UTC
+Update
+There is a still a backlog for sudo-enabled builds on travis-ci.com, but builds are processing at full capacity.
+Posted
+Mar
+13
+,
+2018
+-
+20:13
+UTC
+Update
+We are happy to report that our Mac infrastructure is now clear. A backlog remains on our sudo-enabled infrastructure. At the current pace, we expect the backlog to be cleared in approximately 1 hour.
+Posted
+Mar
+13
+,
+2018
+-
+19:06
+UTC
+Monitoring
+We are processing builds normally but we currently see backlogs on our Mac and `sudo: required` (i.e. GCE) infrastructures. On the other hand, our `sudo:false` (i.e. EC2) infrastructure is all clear. We'll continue to provide timely updates to the state of the backlogs. Thank you for your patience.
+Posted
+Mar
+13
+,
+2018
+-
+18:41
+UTC
+Update
+All platform services are running.  We are now processing builds for private repositories on travis-ci.com.  We'll continue to monitor as we begin to work through the backlog of builds.
+Posted
+Mar
+13
+,
+2018
+-
+17:13
+UTC
+Update
+We’ve reattached the database to our platform.
+www.travis-ci.com
+and api are back up, currently waiting on all platform services to come back up.
+Posted
+Mar
+13
+,
+2018
+-
+17:06
+UTC
+Update
+Database provisioning has completed earlier than expected. We now estimate that travis-ci.com should be fully functional by 18.00 UTC (14.00 EDT, 19.00 CET). Thanks for bearing with us.
+Posted
+Mar
+13
+,
+2018
+-
+16:24
+UTC
+Identified
+Database provisioning is around 50% complete. We continue to prepare for our system coming back online, and plan remediation work.
+Posted
+Mar
+13
+,
+2018
+-
+15:54
+UTC
+Update
+Database provisioning is around 1/3 complete. As it stands our best estimate for travis-ci.com being fully functional is 20.00 UTC (16.00 EDT, 21.00 CET). We will continue to provide regular updates.
+Posted
+Mar
+13
+,
+2018
+-
+15:06
+UTC
+Update
+Database provisioning from the recovery point is still underway. We are doing preparatory work to deal with increased demand when travis-ci.com comes back online. We also continue to investigate the original issue.
+Posted
+Mar
+13
+,
+2018
+-
+14:29
+UTC
+Update
+Database provisioning continues, and we are working closely with our database service provider to diagnose the issue.
+Posted
+Mar
+13
+,
+2018
+-
+13:44
+UTC
+Update
+A replacement database is being provisioned from a snapshot taken this morning. We will update as this process continues.
+Posted
+Mar
+13
+,
+2018
+-
+13:13
+UTC
+Update
+Customers have reported missing account data. We can confirm that we have seen the same symptoms.
+Posted
+Mar
+13
+,
+2018
+-
+12:45
+UTC
+Investigating
+We've identified a major outage on travis-ci.com. We're working to identify the problem and will update this issue shortly.
+Posted
+Mar
+13
+,
+2018
+-
+12:34
+UTC
+←
+Current Status
+Powered by Atlassian Statuspage

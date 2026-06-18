@@ -1,0 +1,65 @@
+# CircleCI — Database
+Source: https://discuss.circleci.com/t/post-incident-report-april-4-2025-delays-in-starting-workflows/53113
+Curator summary (danluu/post-mortems): A blue/green upgrade of the workflows database succeeded mechanically, but the post-cutover database was running every query against disk because its statistics tables had not been updated. The team ran `ANALYZE` early in the upgrade procedure, but a second major-version upgrade in the same deployment then made those statistics stale, leaving the planner without usable indexes after the cutover. Workflows latency spiked, jobs were dropped after exhausting their 10-minute retry, and the team eventually re-promoted the old (blue) database to recover.
+
+--- Original post-mortem text ---
+Post Incident Report: April 4, 2025 - Delays in starting workflows
+Announcements
+incident
+,
+post-incident-review
+shelly
+April 16, 2025,  1:41pm
+1
+Summary
+On April 3, 2025, from 22:08 UTC to 23:45 UTC, CircleCI customers experienced increased latency and some failures with starting and canceling workflows and jobs. During this time customers may have experienced delays and difficulty viewing workflows in the UI. We appreciate your patience and understanding as we worked to resolve this incident.
+The original status page can be found here.
+What Happened
+(all times UTC)
+At approximately 22:00 on April 4, we initiated an upgrade to the service responsible for workflows. We expected a short delay (< 90 seconds) during the database upgrade where calls to the database from the workflows service would get sent to a queue and retried over a 10 minute period. We expected to see the queues grow slightly during and immediately after the upgrade. At 22:08, when the blue/green deployment was complete, we verified queries being served. At 22:17, we identified increased latency in the workflows service, as well as some errors from jobs being dropped due to exhausting their 10 minute retries.
+At 22:29 additional engineers were engaged, and at 22:30 the team restarted the workflows pods to ensure they were all connecting to the correct database. At 22:35 a public incident was declared. At 22:41, it was observed that all queries on the new database were hitting disk, which indicated that the database statistics tables had not updated. The team immediately upsized the database and disabled any non business critical operations on the database. At 23:00, the workflows service was scaled down to a single pod to give the database capacity to recover while the statistics table was rebuilt.
+At 23:10, the team observed the workflows queue backing up due to the reduction in pods as expected but also did not see an improvement in database performance. At 23:19, the team decided to re-enable writes on the old database and reinstate its primary status to restore service to customers sooner. This work completed at 23:29. The team continued to monitor the workflows queue. At 23:45 it was determined that the workflow queue was back to normal operating levels, and no further errors were observed.
+Post-incident, the team continued to investigate. The root cause was determined to be that the analyze operation to rebuild the database’s statistics table, which is used for indexes, had been executed too early in the operation and was made stale by a second major version upgrade within the same deployment.
+Future Prevention and Process Improvement
+The blue/green database deployment procedures have been updated to run an analysis procedure after every major version change. The team has also tested running the analyze command while a database is under pressure to determine it has no further degrading effects on the database performance. This will be noted for future remediation.
+Before any additional migrations are run, the team will add additional automated tests and manual checkpoints throughout the process to identify and resolve issues before the blue/green cutover.
+Related topics
+Topic
+Replies
+Views
+Activity
+Post Incident Report: January 22, 2025 - Delays starting and canceling workflows and jobs, and viewing them in the UI
+Announcements
+incident
+,
+post-incident-review
+0
+46
+January 31, 2025
+Post Incident Report: May 1, 2025 - Delays in starting some jobs
+Announcements
+incident
+,
+post-incident-review
+0
+61
+May 22, 2025
+Postmortem: March 26 - April 10 Workflow Delay Incidents
+Announcements
+0
+1652
+April 29, 2019
+Incident Report: September 27, 2021 - Delays in Workflows
+Announcements
+incident
+,
+post-incident-review
+0
+1452
+October 5, 2021
+Post Incident Report: Elevated Errors in the CircleCI UI
+Announcements
+0
+236
+June 28, 2024
+<------>

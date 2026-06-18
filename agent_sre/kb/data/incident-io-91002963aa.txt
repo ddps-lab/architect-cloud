@@ -1,0 +1,384 @@
+# incident.io — Conflicts
+Source: https://incident.io/blog/one-two-skip-a-few
+Curator summary (danluu/post-mortems): Customers noticed their per-organization `INC-N` IDs jumping by exactly 32 (e.g. `#INC-7` directly to `#INC-39`) after a Postgres HA upgrade that promoted a follower to primary. Postgres's `nextval` pre-allocates `SEQ_LOG_VALS = 32` sequence values on the WAL to avoid logging every `nextval`; a follower sees the post-crash state, so when promoted the sequence jumps forward by up to 32. Fix was to replace `nextval` with a `SELECT MAX(external_id)+1` trigger.
+
+--- Original post-mortem text ---
+All posts
+Esc
+One, Two, Skip a Few...
+A quick primer on incident identifiers
+What did we look at first?
+Down the rabbit hole we go
+To Stack Overflow, we go
+What can we do about it?
+Update: Questions and Comments from Hacker News
+How did you fix the issue?
+Isn't exposing sequential IDs bad?
+One, Two, Skip a Few...
+Pete Hamilton
+July 12, 2021
+—
+8 min read
+The other day, we started getting strange reports from some customers of incident.io.
+Their incident identifiers — unique numbers to identify each incident — appeared to have jumped unexpectedly. One customer with 20 incidents was reporting that we’d labelled their most recent incident as #INC-52 (!?).
+What followed was an interesting little trip into the inner workings of Postgres.
+As a company focussed on the positive side of incidents we’re big fans of sharing learnings when things go wrong, so we thought we'd revisit that day and write up what happened to bring you along
+down the rabbit hole
+on the journey!
+A quick primer on incident identifiers
+Each incident has a unique identifier e.g.,
+#INC-1
+or
+#INC-2
+. We're big fans of simple battle-tested technology and in this case we leaned on Postgres, specifically
+Postgres sequences
+, to control the numeric portion of the ID for us.
+We create a new incident sequence per-organization, initialised to 1 when the organization is created, and for every incident, it increases automatically. Very much like an auto-incrementing primary key that you might be used to.
+In practice, it looks something like this:
+-- When we create a new organisation, automatically generate
+-- a sequence for all its incidents
+CREATE
+OR
+REPLACE
+FUNCTION
+create_incident_external_id_seq
+(
+)
+RETURNS
+trigger
+AS
+$$
+BEGIN
+execute
+format
+(
+'create sequence external_incident_id_seq_%s'
+,
+NEW
+.
+id
+)
+;
+return
+NEW
+;
+END
+;
+$$
+LANGUAGE
+plpgsql
+;
+CREATE
+TRIGGER
+create_incident_external_id_seq_trigger
+AFTER
+INSERT
+ON
+organisations
+FOR EACH ROW
+EXECUTE
+PROCEDURE
+create_incident_external_id_seq
+(
+)
+;
+-- Every time we create a new incident, generate the next value
+-- in the sequence for the incident's `organisation_id`
+CREATE
+OR
+REPLACE
+FUNCTION
+populate_incident_external_id_seq
+(
+)
+RETURNS
+trigger
+AS
+$$
+BEGIN
+NEW
+.
+external_id :
+=
+nextval
+(
+'external_incident_id_seq_'
+||
+NEW
+.
+organisation_id
+)
+;
+RETURN
+NEW
+;
+END
+;
+$$
+LANGUAGE
+plpgsql
+;
+CREATE
+TRIGGER
+populate_incident_external_id_seq
+BEFORE
+INSERT
+ON
+incidents
+FOR EACH ROW
+EXECUTE
+PROCEDURE
+populate_incident_external_id_seq
+(
+)
+;
+What did we look at first?
+Our initial reaction was that it might be due to transaction rollbacks. The way Postgres works, calling
+nextval
+on a sequence will return the next value in the sequence.
+However, in the case of a rollback, while the changes to the rows in the database is reverted, any impact on sequences isn't. They'll just keep increasing, so you can end up with the sequence “running ahead” of the number of records in your database. You can see this with a simple example:
+create
+table
+seq_test
+(
+incident_id bigserial
+not
+null
+,
+name
+text
+,
+constraint
+pk_incidents
+primary
+key
+(
+incident_id
+)
+)
+;
+INSERT
+INTO
+seq_test
+(
+name
+)
+VALUES
+(
+'A'
+)
+;
+INSERT
+INTO
+seq_test
+(
+name
+)
+VALUES
+(
+'B'
+)
+;
+-- Now let's create a few in a transaction, but roll it back
+BEGIN
+;
+INSERT
+INTO
+seq_test
+(
+name
+)
+VALUES
+(
+'C'
+)
+;
+INSERT
+INTO
+seq_test
+(
+name
+)
+VALUES
+(
+'D'
+)
+;
+ROLLBACK
+;
+-- Now let's create a few more
+INSERT
+INTO
+seq_test
+(
+name
+)
+VALUES
+(
+'E'
+)
+;
+INSERT
+INTO
+seq_test
+(
+name
+)
+VALUES
+(
+'F'
+)
+;
+SELECT
+*
+FROM
+seq_test
+;
+-- See the ID auto-incrementing, even though the records never persisted!
+incident_id
+|
+name
+-------------+------
+1
+|
+A
+2
+|
+B
+5
+|
+E
+6
+|
+F
+(
+4
+rows
+)
+In the event we attempt (and fail) to create an incident and roll back the transaction, this could clearly cause our sequence number to go up, even if no incident got created.
+This was unlikely for a few reasons, though:
+We go to great lengths to ensure that if someone asks us to create an incident, we do so (!). We hadn't seen any issues and had no reports from customers, either.
+For failed incident creation to be the cause, we would have had to fail to create incidents for an organization
+32 times
+!
+Down the rabbit hole we go
+Shortly after we started investigating the issue, a second report came in, this time for another customer who had seen their incident IDs jump from
+#INC-7
+to
+#INC-39
+. Something was clearly going more systematically wrong here, and the fact that the difference was consistent with the first report,
+and
+was exactly
+32
+, set off all our engineering spidey-senses, it’s just too much of a coincidence to write off.
+At this point we did a more comprehensive audit of our database and our incident sequences. You can query sequences just like you do tables and you'll see something like this:
+SELECT * FROM incident_id_sequence_xyz
+last_value | log_cnt | is_called
+------------+---------+-----------
+186 |      32 | t
+(1 row)
+We saw two interesting things:
+A significant proportion of incident ID sequences appeared to have suffered the same fate as the ones which had been reported.
+log_cnt
+appeared to be
+exactly
+the offset we were seeing. Highly suspicious.
+Whilst No data had gone missing, or been misattributed, it was confusing for customers, and we needed to get to the bottom of it. As is so often the case, Stack Overflow provided us with some
+great signposting
+which led us to
+this interesting bit of Postgres source code
+:
+/*
+* We don't want to log each fetching of a value from a sequence,
+* so we pre-log a few fetches in advance. In the event of
+* crash we can lose (skip over) as many values as we pre-logged.
+*/
+#define SEQ_LOG_VALS	32
+So, Postgres pre-allocates 32 numbers in a sequence, decrements that as the numbers are dished out, and then writes to the
+Write Ahead Log (WAL)
+to let the follower nodes know, grabs another 32 and starts again.
+In the event of a crash though, it can lose this state, and will just start up with the assumption all the previously pre-allocated numbers were all "used".
+This means it will essentially “skip” as many values as it pre-allocates, potentially leading to skipping
+up to 32 numbers in a sequence
+.
+Aha, now we’re getting somewhere!
+To Stack Overflow, we go
+Although this issue was a recent occurrence, we hadn’t seen any crashes in Postgres that might have led to this, and our database has been perfectly healthy. What gives?
+Once again, Stack Overflow provides some clues from the past (almost four years ago) from others who had hit this issue before us and ended up pointed us to an old postgres
+mailing list post from 2011
+.
+In short, it turns out follower nodes will see the state "that would prevail on the primary if it were to crash", which as above, is likely to be up to 32 ahead of the current sequence value.
+Whilst we hadn’t seen a crash, we
+had
+upgraded our database recently, which involves spinning up a follower, then promoting it to be the primary.
+As part of this promotion, the follower (which in many cases had a sequence value up to 32 ahead) became the new primary, at which point all sequences essentially jumped 32 values forward.
+What can we do about it?
+Something which seems like a great idea can sometimes have unexpected implications and side effects.
+Sequences felt like a good use case for this when we started, and although they’re great for ensuring automatically increasing values, in our case, we don’t just want a monotonically increasing sequence, we want a sequence of IDs that _only go up in increments of 1.
+We’ve since moved to a different approach which enforces the behaviour we want more explicitly when creating incidents, and we learned something along the way.
+Back to building!
+Update: Questions and Comments
+from Hacker News
+Since this has got some attention on Hacker News, I thought I'd answer some of the good questions being asked there!
+How did you fix the issue?
+We have a trigger that runs before insert, which looks something like this, with an index on the organization and the id to make the
+MAX
+speedy. At our scale this will last a good long while.
+CREATE OR REPLACE FUNCTION populate_incident_external_id_seq() RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+begin
+NEW.external_id := (SELECT COALESCE(MAX(external_id), 0) + 1 FROM incidents WHERE organisation_id = NEW.organisation_id);
+RETURN NEW;
+end
+$$;
+Isn't exposing sequential IDs bad?
+What we're referring to in this article is a
+deliberately incrementing
+value. We call them external ids above, but granted, that probably isn't as clear as it could have been.
+For those of you pointing out the pitfalls of exposing sequential IDs, normally you'd be right!
+The two main issues are I've seen are:
+Relying on "security through" obscurity, but because people can guess the IDs (they just go up by one each time!) you potentially end up leaking that an object exists.
+Indirectly leaking company metrics and growth numbers. If you're a payments API and someone just creates a payment for £1 each day for three days, with IDs
+1000
+,
+1499
+,
+2001
+etc, they'll quickly have a good idea how much volume you're doing.
+TIL
+that's generally called the
+German Tank Problem
+.
+Our
+internal IDs
+(i.e., our primary keys) are just references and hold no meaning other than being a reference to the row/entity, so they're not falling foul of the issue above.
+Similarly, I can recommend having external API references be separate fields to your internal primary IDs, if you can afford it. It makes database changes down the line far easier when you can migrate and change your internal IDs whilst still maintaining the external references in your API, but that's a whole other topic!
+Pete Hamilton
+Co-Founder & CTO
+View more
+from
+Pete
+See related articles
+View all
+We rebuilt our post-mortems from the ground up
+Today we're launching our new post-mortems experience, and I want to walk you through what we've done and why.
+Pete Hamilton
+March 17, 2026
+Bloom filters: the niche trick behind a 16× faster API
+This post is a deep dive into how we improved the P95 latency of an API endpoint from 5s to 0.3s using a niche little computer science trick called a bloom filter.
+Mike Fisher
+November 14, 2025
+My first three months at incident.io
+Hear from Edd - one of our recent joiners in the On-Call team - how have they found their first three months and what's it been like working here.
+Edd Sowden
+September 1, 2025
+View all
+So good, you’ll break things on purpose
+Ready for modern incident management? Book a call with one of our experts today.
+We’d love to talk to you about
+All-in-one incident management
+Our unmatched speed of deployment
+Why we’re loved by users and easily adopted
+How we work for the whole organization
+Get a demo
