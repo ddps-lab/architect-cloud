@@ -7,8 +7,11 @@
 정적 채팅 SPA를 한 벌만 배포하고, 그 URL을 모든 수강생에게 공유합니다. 수강생은
 각자 자신의 에이전트 Function URL을 화면 ⚙︎설정에 입력해서 씁니다.
 
+**CloudShell**(서울 리전)에서:
+
 ```sh
-cd agent_sre
+git clone https://github.com/ddps-lab/architect-cloud.git
+cd architect-cloud/agent_sre
 ./web-chat/deploy_chat.sh            # copilot-chat-web 스택 생성 + SPA 업로드
 # 출력된 "채팅 사이트" URL 을 수강생에게 공유
 ```

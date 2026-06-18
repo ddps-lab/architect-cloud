@@ -4,17 +4,33 @@
 어려운 부품(IAM 역할·장애 주입기·라이브러리 레이어)은 CF로 한 번에 깔고,
 **핵심(벡터 DB·지식베이스·에이전트 Lambda)** 은 콘솔에서 손으로 만듭니다.
 
-리전은 모두 **ap-northeast-2 (서울)** 기준입니다.
+리전은 모두 **ap-northeast-2 (서울)** 기준입니다. 실습은 **AWS CloudShell**에서
+진행합니다(로컬 설치 불필요).
 
 > 진행 중 나오는 출력값(ARN, 버킷명, KB ID 등)은 메모장에 적어두세요. 뒤에서 씁니다.
 
 ---
 
-## 0. 사전 확인
+## 0. 사전 확인 + CloudShell 준비
+
+확인할 것:
 - 내 환경에 `coffee-serverless` 스택이 배포돼 있다 (대상 서비스 + RDS).
 - Bedrock 모델 액세스가 켜져 있다 (사용 모델 + **Titan Text Embeddings v2**).
-- 로컬에 AWS CLI, Python 3.12, Node 18+, `zip` 이 있다.
 - 강사가 공유한 **채팅 사이트 URL** 을 받았다.
+
+CloudShell 열기 (도구는 모두 사전 설치됨 — AWS CLI·Python3·Node·git·zip):
+1. AWS 콘솔 오른쪽 위 **리전을 서울(ap-northeast-2)** 로 맞춘다.
+2. 콘솔 상단 바의 **CloudShell 아이콘**(`>_`)을 클릭해 연다.
+3. 저장소를 받고 작업 폴더로 이동한다:
+
+```sh
+git clone https://github.com/ddps-lab/architect-cloud.git
+cd architect-cloud/agent_sre
+```
+
+> CloudShell은 자기 계정·리전 자격증명으로 자동 로그인돼 있어 별도 설정이 필요
+> 없습니다. 홈 디렉터리는 세션이 끊겨도 유지되지만, 20분 이상 미사용 시 세션이
+>재시작될 수 있습니다(그때는 다시 `cd architect-cloud/agent_sre`).
 
 ---
 
@@ -76,6 +92,9 @@ aws s3 cp kb/data "s3://$KB_BUCKET/danluu/" --recursive   # 20건(.txt + .metada
 ```sh
 ./infra/build_function_zip.sh        # function.zip 생성 (lambda_src 만, 수십 KB)
 ```
+CloudShell에서 만든 `function.zip` 을 콘솔에 올리려면 내 PC로 내려받습니다:
+**CloudShell 우측 상단 Actions → Download file → `agent_sre/function.zip`**
+(경로 입력 시 홈 기준 상대경로, 예: `architect-cloud/agent_sre/function.zip`)
 
 ### 4-2. 함수 생성
 - **Lambda 콘솔 → Create function → Author from scratch**

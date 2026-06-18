@@ -68,12 +68,20 @@ agent_sre/
 
 - `coffee-serverless` 스택 배포됨(`../cloudformation/ServerlessApp_CF.yaml`).
 - Bedrock 모델 액세스 활성화(ap-northeast-2): 사용할 모델 + **Titan Text Embeddings v2**.
-- 로컬: AWS CLI, Python 3.12, Node 18+, `zip`.
+- 실습은 **AWS CloudShell**(서울 리전)에서 진행 — 로컬 설치 불필요(AWS CLI·Python3·
+  Node·git·zip 사전 설치). CloudShell을 열고 저장소를 받습니다:
+
+```sh
+git clone https://github.com/ddps-lab/architect-cloud.git
+cd architect-cloud/agent_sre
+```
 
 ## 빠른 시작
 
+CloudShell(서울 리전)에서 저장소를 받은 뒤(`사전 준비` 참고):
+
 ```sh
-cd agent_sre
+cd architect-cloud/agent_sre
 
 # 강사(전역 1회): 공유 채팅 웹
 ./web-chat/deploy_chat.sh
