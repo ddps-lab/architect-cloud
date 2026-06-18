@@ -1,0 +1,180 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  SRE Incident Copilot — LAB BASE (미리 배포되는 부품).
+  각 수강생이 자신의 환경에 1회 배포합니다. 장애 주입 Lambda(자기 RDS 대상),
+  에이전트가 붙일 IAM 역할, 세션(기억) 버킷, 의존성 레이어를 만듭니다.
+  ※ 핵심 실습(S3 Vectors / Knowledge Base / 에이전트 Lambda)은 학생이 직접 콘솔에서
+  만듭니다 — 이 템플릿에 포함되지 않습니다. web-chat 도 별도(전역 1회)입니다.
+
+Parameters:
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: coffee-serverless 프라이빗 서브넷 (injector가 RDS에 닿기 위함)
+  LambdaSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: coffee-serverless LambdaSG (RDS SG에 이미 허용됨)
+  DbHost:
+    Type: String
+  DbUser:
+    Type: String
+    Default: nodeapp
+  DbPassword:
+    Type: String
+    NoEcho: true
+    Default: lab-password
+  DbName:
+    Type: String
+    Default: COFFEE
+  CodeBucket:
+    Type: String
+    Description: injector.zip / layer.zip / 정규 coffee 빌드(customer.zip/employee.zip)가 있는 버킷
+  InjectorCodeKey:
+    Type: String
+    Default: copilot/injector.zip
+  LayerCodeKey:
+    Type: String
+    Default: copilot/layer.zip
+
+Resources:
+  ###########
+  # 의존성 레이어 (Strands/fastapi/uvicorn/mcp/awslabs ...)
+  ###########
+  DepsLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: copilot-deps
+      CompatibleRuntimes:
+        - python3.12
+      Content:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref LayerCodeKey
+
+  ###########
+  # 세션(기억) 버킷 — 에이전트 S3SessionManager 용
+  ###########
+  SessionBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub copilot-sessions-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  ###########
+  # 장애 주입 Lambda (Node, VPC) — 자기 환경의 RDS에 SQL 실행
+  ###########
+  InjectorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+
+  InjectorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: coffee-fault-injector
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Timeout: 30
+      MemorySize: 256
+      Role: !GetAtt InjectorRole.Arn
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref InjectorCodeKey
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          APP_DB_HOST: !Ref DbHost
+          APP_DB_USER: !Ref DbUser
+          APP_DB_PASSWORD: !Ref DbPassword
+          APP_DB_NAME: !Ref DbName
+
+  ###########
+  # 에이전트 IAM 역할 — 학생이 만든 에이전트 Lambda 에 붙입니다
+  ###########
+  AgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub copilot-agent-role-${AWS::Region}
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: copilot-agent
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # Bedrock 모델 호출 + KB 검색 (KB는 학생이 만드므로 Resource * — 랩 한정)
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                  - bedrock:Retrieve
+                Resource: "*"
+              # 진단: coffee 서비스 로그 읽기
+              - Effect: Allow
+                Action:
+                  - logs:FilterLogEvents
+                  - logs:GetLogEvents
+                  - logs:DescribeLogStreams
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/coffee-*
+              # 복구: injector 호출 + coffee 함수 재배포
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt InjectorFunction.Arn
+              - Effect: Allow
+                Action:
+                  - lambda:UpdateFunctionCode
+                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                Resource:
+                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-customer
+                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-employee
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub arn:aws:s3:::${CodeBucket}/*
+              # 기억: 세션 버킷
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt SessionBucket.Arn
+                  - !Sub ${SessionBucket.Arn}/*
+
+Outputs:
+  AgentRoleArn:
+    Description: 학생 에이전트 Lambda 에 붙일 실행 역할
+    Value: !GetAtt AgentRole.Arn
+  DepsLayerArn:
+    Description: 에이전트 Lambda 에 추가할 의존성 레이어
+    Value: !Ref DepsLayer
+  SessionBucketName:
+    Description: 에이전트 env SESSION_BUCKET 값
+    Value: !Ref SessionBucket
+  InjectorFunctionName:
+    Description: 에이전트 env INJECTOR_FN 값 / faults 스크립트 대상
+    Value: !Ref InjectorFunction
+  LwaLayerArn:
+    Description: 에이전트 Lambda 에 추가할 Lambda Web Adapter 레이어
+    Value: !Sub arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerX86:28

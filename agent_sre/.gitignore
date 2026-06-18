@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+*.zip
+build/
+# kb/data/ is committed: the 20 curated post-mortems for the lab faults (F1-F4).

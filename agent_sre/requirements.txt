@@ -1,0 +1,7 @@
+# Lambda runtime deps (kept minimal — boto3/botocore are provided by the Lambda
+# runtime and stripped from the package; strands-agents-tools is NOT used).
+strands-agents>=0.1.0
+mcp>=1.0.0
+fastapi>=0.110.0
+uvicorn>=0.29.0
+awslabs.aws-documentation-mcp-server>=1.0.0

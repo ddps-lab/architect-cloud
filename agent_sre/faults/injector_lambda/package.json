@@ -1,0 +1,9 @@
+{
+  "name": "coffee-fault-injector",
+  "version": "1.0.0",
+  "description": "In-VPC SQL helper for fault injection and DB-level recovery",
+  "main": "index.js",
+  "dependencies": {
+    "mysql2": "^3.9.7"
+  }
+}

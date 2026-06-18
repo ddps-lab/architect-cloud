@@ -1,0 +1,81 @@
+# CircleCI — Config Errors
+Source: https://discuss.circleci.com/t/incident-report-november-8-2021-jobs-stuck-in-a-not-running-state/41890
+Curator summary (danluu/post-mortems): A deploy changed the type of a field in the PostgreSQL database used by the job-distribution service. Newly-written rows used the new type and old rows used the old type, so the distributor's strict schema validation failed on each scan and it stopped distributing work. Rolling back made the rows written between the two deploys unreadable, so distribution kept failing; recovery required hand-deploying a build that ignored the offending field, plus manual scaling.
+
+--- Original post-mortem text ---
+Incident Report: November 8, 2021 - Jobs stuck in a "not running" state
+Announcements
+incident
+,
+post-incident-review
+yannCI
+November 11, 2021,  1:53pm
+1
+Incident Report: November 8, 2021 - Jobs stuck in a “not running” state
+Summary
+Customer jobs were blocked in a “not running” state from approximately 18:50 UTC to 19:43 UTC on Monday, November 8, 2021, due to a database schema change that was not backwards compatible. This affected all executors, with Docker executors recovering first. The disruption continued as customers saw longer than usual queue times, particularly for machine executors, until 20:19 UTC.
+We apologize for this disruption. We know that your CI/CD pipeline is a mission-critical piece of infrastructure that you rely on to keep your work flowing. In light of recent outages, we want to provide insight into what happened on this occasion.
+The original
+status page can be found here
+.
+Background
+All work coming into CircleCI’s execution platform flows through a distribution service that accepts requests to run a discrete task and moves that task to the appropriate queue. This service uses a PostgreSQL database to manage data with industry-standard schema validation. When the distributor service looks for work, it stops if it finds bad data and tries again from the start, assuming that something has gone wrong and a retry is sufficient to recover.
+Once work is distributed, each orchestrator has a mechanism to handle the “thundering herd” scenario in cases where a sudden influx of work hits the system. These mechanisms include automatic as well as manual responses. Each orchestrator also has its own set of health checks based on the executors it manages.
+What happened
+All times are UTC.
+At 18:50, we rolled out a deploy to change a field type in our distribution database. Incoming work received data of the new type, and any work from before the deploy caused distribution to fail. We immediately saw errors and alerts related to the failure, and rolled back the change. With the revert, the data written between deploys became unreadable and caused distribution to fail.
+The error count chart shows this flipped state. First errors spike, then incoming work decreases as jobs that rely on other jobs fail to be queued. At the point of rollback the errors change but don’t go away, and incoming work continues to decrease slowly.
+erros_count
+1600×735 94.7 KB
+We quickly wrote, built, and manually deployed a modification that allowed the distribution system to simply ignore that field. In the meantime, we manually scaled our primary compute cluster to handle the expected flood of work, or “thundering herd.” This manual scaling is a standard part of our incident handling process.
+As work started to flow through the system, queue times remained higher than expected for longer than usual. When we increased provisioning for our primary compute fleet, the new nodes took longer than expected to join the fleet, which led to many of them being marked unhealthy and terminating. As a result, recovery proceeded more slowly than it should have. In addition, our machine executors including Mac provisioned more slowly due to provider rate limiting.
+With time, job queues decreased until work flowed normally through the system. After a brief period of monitoring where we observed normal processing, we resolved the incident.
+Future prevention
+We’re making efforts in three places: preventing an identical incident, limiting impact for similar failures, and ensuring faster recovery when unforeseen failures occur.
+To prevent an identical incident, we’ve identified gaps in our testing strategy and are implementing fixes.
+To limit impact in a similar situation, we’re changing how our distributor reacts when encountering unexpected data. This should prevent this kind of deploy from impacting all jobs in the system.
+Related topics
+Topic
+Replies
+Views
+Activity
+Post Incident Report: May 1, 2025 - Delays in starting some jobs
+Announcements
+incident
+,
+post-incident-review
+0
+61
+May 22, 2025
+Postmortem: May 21, 2021 - Delay in starting Docker Jobs. Machine & remote Docker environments blocked
+Announcements
+incident
+,
+machine-executor
+,
+remote-docker
+0
+1619
+June 3, 2021
+Post Incident Report: January 22, 2025 - Delays starting and canceling workflows and jobs, and viewing them in the UI
+Announcements
+incident
+,
+post-incident-review
+0
+46
+January 31, 2025
+Post Incident Report: December 2, 2025 - Jobs not starting, Jobs stuck in running state, Pipelines page not loading
+Announcements
+incident
+,
+post-incident-review
+0
+60
+December 18, 2025
+Postmortem: March 26 - April 10 Workflow Delay Incidents
+Announcements
+0
+1652
+April 29, 2019
+<------>

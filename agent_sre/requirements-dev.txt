@@ -1,0 +1,4 @@
+# Local-only tooling (KB crawl/ingest). Not packaged into the Lambda.
+boto3>=1.34.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
