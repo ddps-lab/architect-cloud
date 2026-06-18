@@ -1,126 +1,77 @@
 # SRE Incident Copilot (실습)
 
-danluu 회고 모음을 지식베이스로 삼아, 한 개의 AWS Strands 에이전트가 `coffee`
-마이크로서비스의 장애를 **탐지 → 진단 → 복구 → 검증**하도록 만드는 실습입니다.
-수강생은 **`lambda_src/agent_app.py` 한 파일만** 수정하며, 모듈을 하나씩 켜 갑니다.
+danluu 회고 모음을 지식베이스로 삼아, **하나의 AWS Strands 에이전트**가 `coffee`
+마이크로서비스의 장애를 **탐지 → 진단 → 복구 → 검증** 하도록 직접 만들어 보는
+실습입니다. 수강생은 에이전트 Lambda에서 **모듈을 한 줄씩 주석 해제**하며 능력을
+하나씩 붙입니다(골격 → 도구 → 기억 → 지식베이스 → AWS 문서 MCP).
 
-## 무엇을 직접 만드나
+> 어려운 배선(서버·스트리밍·도구 구현·라이브러리)은 `lambda_src` 패키지와 레이어에
+> 숨겨져 있고, 수강생은 `lambda_src/agent_app.py` 의 `build_agent` 만 편집합니다.
 
-핵심 학습 대상(벡터 DB·지식베이스·에이전트 Lambda)은 **수강생이 콘솔에서 직접**
-만듭니다. 어려운 부품(IAM 역할·장애 주입기·라이브러리 레이어)과 공유 채팅 웹은
-미리 깔립니다.
+## 📖 문서
+- **수강생**: [`docs/STUDENT_GUIDE.md`](docs/STUDENT_GUIDE.md) — 처음부터 끝까지 단계별
+- **강사**: [`docs/INSTRUCTOR_SETUP.md`](docs/INSTRUCTOR_SETUP.md) — 사전 1회 준비
 
-| 구분 | 누가 | 무엇 | 방법 |
-|------|------|------|------|
-| 공유 채팅 웹 | 강사(1회) | S3+CloudFront SPA | `web-chat/deploy_chat.sh` |
-| LabBase | 수강생(각자) | injector·IAM 역할·세션버킷·레이어 | `infra/deploy_labbase.sh` (CF) |
-| **S3 Vectors / KB / 적재** | **수강생(직접)** | 핵심 실습 | 콘솔 + `kb/` |
-| **에이전트 Lambda 생성·편집** | **수강생(직접)** | 핵심 실습 | 콘솔 |
-| 장애 주입 | 수강생(각자) | 자기 RDS 대상 | `faults/inject.sh` |
+## 아키텍처
 
-> 자세한 절차는 가이드 문서를 보세요:
-> - 수강생: **[docs/STUDENT_GUIDE.md](docs/STUDENT_GUIDE.md)**
-> - 강사: **[docs/INSTRUCTOR_SETUP.md](docs/INSTRUCTOR_SETUP.md)**
+```
+   수강생 ─► (공유) 채팅 웹 ─► 내 에이전트 Lambda(Strands, LWA 스트리밍)
+                                   ├─► Bedrock (LLM)
+                                   ├─► Knowledge Base (danluu 회고 20건 / S3 Vectors)
+                                   ├─► AWS Docs MCP (모듈 5)
+                                   ├─► 도구: get_logs / run_smoke_test / run_sql / redeploy
+                                   ├─► S3 세션 기억 (모듈 3)
+                                   └─► 장애 주입 Lambda ─► RDS(MySQL)
+   coffee-customer / employee (대상 서비스) ───────────────► RDS
+```
 
-## 모듈 토글 (`lambda_src/agent_app.py`)
+## 책임 분담
 
-Lambda 콘솔 → `strands-incident-copilot` → 코드 탭에서 **`lambda_src/agent_app.py`**
-를 열고, 모듈별로 **줄 앞의 `#`(주석)을 지워** 기능을 켭니다. [Deploy] 후 채팅
-웹에서 같은 질문을 던져 차이를 확인하세요.
-
-| 모듈 | 켜는 법 (`lambda_src/agent_app.py`) | 효과 |
-|------|------------------------|------|
-| 1 골격 | 기본 상태 (이미 켜짐) | 절차만 앎 → 도구 없어 증거를 요청하고 멈춤 |
-| 2 도구 | `tools=m2_tools.ALL,` 주석 해제 | 실제 로그 조회·스모크·복구 도구 사용 |
-| 3 기억 | `session_manager=m3_memory.memory(session_id),` 주석 해제 | 이전 대화를 기억(턴 넘어 회상) |
-| 4 지식베이스 | `tools=m2_tools.ALL + [m4_knowledge_base.search],` | 실제 회고를 회사명·URL로 인용 |
-| 5 AWS 문서 | `... + m5_aws_docs.load()` | AWS 공식문서 MCP로 최신 정보 인용 |
-
-서드파티 라이브러리(Strands·fastapi·mcp 등)는 Lambda **레이어**에 들어 있어 함수
-코드에는 보이지 않습니다. 프로젝트 코드(`lambda_src/`)는 전부 함수 코드 안에
-있어 콘솔에서 그대로 보고 편집할 수 있습니다(함수 코드 ~10KB, 인라인 편집 가능).
+| 구분 | 누가 | 방법 |
+|------|------|------|
+| 공유 채팅 웹 | 강사 (전역 1회) | `web-chat/deploy_chat.sh` |
+| coffee-serverless (대상+RDS) | 수강생 (각자) | `../cloudformation/ServerlessApp_CF.yaml` |
+| LabBase: 장애주입·IAM 역할·세션버킷·레이어 | 수강생 (각자, CF 1회) | `infra/deploy_labbase.sh` |
+| **S3 Vectors · Knowledge Base · 적재** | **수강생 (직접)** | 핵심 실습 |
+| **에이전트 Lambda 생성·편집** | **수강생 (직접, 콘솔)** | 핵심 실습 |
+| 장애 주입 | 수강생 (각자) | `faults/inject.sh` (자기 RDS) |
 
 ## 구조
 
 ```
 agent_sre/
-├── lambda_src/          함수 코드 (콘솔 편집 가능, 모든 프로젝트 .py)
-│   ├── agent_app.py     🎓 수강생이 편집하는 파일 (build_agent)
+├── lambda_src/          에이전트 함수 코드 (콘솔 편집 가능, 모든 프로젝트 .py)
+│   ├── agent_app.py     🎓 수강생이 편집 (build_agent — 모듈 주석 해제)
 │   ├── runtime.py       FastAPI/SSE 서버 (agent_app.build_agent 호출)
-│   ├── m1_prompt.py     SYSTEM_PROMPT
-│   ├── m1_model.py      model() — Bedrock 모델
-│   ├── m2_tools.py      m2_tools.ALL — smoke/logs/run_sql/redeploy
-│   ├── m3_memory.py     m3_memory.memory(session_id) — S3 세션 기억
-│   ├── m4_knowledge_base.py m4_knowledge_base.search — 회고 KB 검색
-│   ├── m5_aws_docs.py   m5_aws_docs.load() — AWS 문서 MCP
-│   └── run.sh           LWA 부팅 (uvicorn lambda_src.runtime:app)
+│   ├── run.sh           LWA 부팅 (Handler=lambda_src/run.sh)
+│   ├── m1_prompt.py m1_model.py m2_tools.py m3_memory.py
+│   └── m4_knowledge_base.py m5_aws_docs.py
 ├── infra/
-│   ├── LabBase_CF.yaml         injector + AgentRole + 세션버킷 + 의존성 레이어
-│   ├── deploy_labbase.sh       LabBase 배포 (수강생 각자, CF)
-│   └── build_function_zip.sh   lambda_src → function.zip (콘솔 업로드용)
-├── faults/              장애 주입/복구 (inject.sh / restore.sh / injector Lambda)
-├── kb/                  danluu 크롤러 + S3 Vectors 셋업 + 회고 20건(data/)
-├── web-chat/            채팅 SPA + ChatWeb_CF.yaml + deploy_chat.sh (강사 1회)
-└── docs/                STUDENT_GUIDE.md / INSTRUCTOR_SETUP.md
+│   ├── LabBase_CF.yaml      injector·IAM역할·세션버킷·레이어 (수강생 1회)
+│   ├── deploy_labbase.sh    위 배포 + 코드/레이어 빌드·업로드
+│   └── build_function_zip.sh  function.zip(lambda_src) 생성
+├── kb/                  setup_s3vectors.sh, ingest_danluu.py, data/(회고 20건)
+├── faults/              inject.sh / restore.sh / injector_lambda/
+├── web-chat/            공유 채팅 SPA + ChatWeb_CF.yaml + deploy_chat.sh
+└── docs/                STUDENT_GUIDE.md, INSTRUCTOR_SETUP.md
 ```
 
-## 사전 준비
+## 장애 ↔ 실제 회고 (지식베이스 20건이 이 메커니즘들에 대응)
 
-- `coffee-serverless` 스택 배포됨(`../cloudformation/ServerlessApp_CF.yaml`).
-- Bedrock 모델 액세스 활성화(ap-northeast-2): 사용할 모델 + **Titan Text Embeddings v2**.
-- 실습은 **AWS CloudShell**(서울 리전)에서 진행 — 로컬 설치 불필요(AWS CLI·Python3·
-  Node·git·zip 사전 설치). CloudShell을 열고 저장소를 받습니다:
-
-```sh
-git clone https://github.com/ddps-lab/architect-cloud.git
-cd architect-cloud/agent_sre
-```
-
-## 빠른 시작
-
-CloudShell(서울 리전)에서 저장소를 받은 뒤(`사전 준비` 참고):
-
-```sh
-cd architect-cloud/agent_sre
-
-# 강사(전역 1회): 공유 채팅 웹
-./web-chat/deploy_chat.sh
-
-# 수강생(각자): 부품 배포
-./infra/deploy_labbase.sh
-
-# 수강생(직접): S3 Vectors → KB 생성·적재 → 에이전트 Lambda 생성
-#   => docs/STUDENT_GUIDE.md 2~5번 단계 참고
-```
-
-## 인시던트 실습 루프
-
-```sh
-# 장애 주입 (Appendix A — 실제 회고 메커니즘 재현, 자기 RDS 대상)
-./faults/inject.sh f1      # 정수 PK 오버플로 (Strava/Basecamp/GitHub)
-# ./faults/inject.sh f2    # 커넥션 풀 고갈 (incident.io)
-# ./faults/inject.sh f3    # 무한 로컬 로그 → ENOSPC (Tarsnap)
-# ./faults/inject.sh f4    # 컬럼 타입 변경 (CircleCI)
-
-# 채팅에서: "employee 서비스가 이상해. 조사해줘."
-#   -> (모듈에 따라) 로그 진단 → 회고 인용 → 복구 제안. "적용해" 라고 하면 적용 후 검증.
-
-./faults/restore.sh        # 끝나면 원상복구
-```
-
-## 장애 ↔ 실제 사건 (Appendix A)
-
-| 장애 | 시그니처 | 실제 사건 | 복구 |
+| 장애 | 시그니처 | 대표 회고 | 복구 |
 |------|----------|-----------|------|
-| F1 | `Duplicate entry '2147483647'` / `Out of range value for 'id'` | Strava/Basecamp/GitHub | `id` → BIGINT |
-| F2 | 부하 시 `Task timed out` | incident.io | 불필요 트랜잭션 제거·풀 상향 |
-| F3 | `ENOSPC: no space left on device` | Tarsnap | 로컬 /tmp 로깅 제거 |
-| F4 | `ER_TRUNCATED_WRONG_VALUE` | CircleCI 2021-11 | 관대한 읽기 + 백필 |
+| F1 | `Duplicate entry '2147483647'` / `Out of range value for 'id'` | GitHub(INT32→BIGINT), Heroku FK 오버플로, Ariane 5 | `id` → BIGINT |
+| F2 | 부하 시 `Task timed out` | incident.io (커넥션 풀 고갈) | 불필요 트랜잭션 제거·풀 상향 |
+| F3 | `ENOSPC: no space left on device` | Tarsnap (무한 로컬 로그) | 로컬 로깅 제거 |
+| F4 | `ER_TRUNCATED_WRONG_VALUE` | CircleCI (컬럼 타입 변경) | 관대한 읽기 + 백필 |
 
-## 안전 & 정리
+## 모델
+`MODEL_ID` 환경변수로 지정(추론 프로파일). 예: `global.anthropic.claude-sonnet-4-6`,
+`apac.amazon.nova-micro-v1:0`. on-demand 미지원 모델은 inference profile ID가
+필요하고, Bedrock 모델 액세스가 켜져 있어야 합니다.
 
-- 복구 도구(`run_sql`/`redeploy_service`)는 라이브 RDS/Lambda를 바꿉니다 —
-  에이전트는 채팅에서 사람이 명시 승인할 때만 적용합니다.
-- 장애 주입은 라이브 코드/스키마를 바꿉니다 — **실습 브랜치 전용**, 끝나면 `restore.sh`.
-- 비용: Bedrock·S3 Vectors·CloudFront·Lambda. 정리 절차는
-  [docs/STUDENT_GUIDE.md](docs/STUDENT_GUIDE.md) 7번 참고.
+## 안전
+- 복구 도구(`run_sql`/`redeploy_service`)는 라이브 RDS/Lambda를 바꿉니다 — 에이전트는
+  채팅에서 사람이 **명시 승인**할 때만 적용합니다.
+- 장애 주입은 라이브 코드/스키마를 바꿉니다 — 실습용이며 끝나면 `faults/restore.sh`.
+- 정리(삭제) 절차는 `docs/STUDENT_GUIDE.md` 7장 참고.
