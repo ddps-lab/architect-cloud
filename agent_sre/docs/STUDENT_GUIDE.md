@@ -32,6 +32,16 @@ cd architect-cloud/agent_sre
 > 없습니다. 홈 디렉터리는 세션이 끊겨도 유지되지만, 20분 이상 미사용 시 세션이
 >재시작될 수 있습니다(그때는 다시 `cd architect-cloud/agent_sre`).
 
+> **아직 `coffee-serverless` 가 없다면** 코드 버킷을 만들 필요 없이 바로 배포합니다.
+> Lambda 코드(`coffee/customer.zip`·`coffee/employee.zip`)는 강사 공유 버킷
+> (`samsung-cloud-architect`)에서 끌어옵니다(빌드 불필요):
+> ```sh
+> aws cloudformation deploy \
+>   --template-file ../cloudformation/ServerlessApp_CF.yaml \
+>   --stack-name coffee-serverless --capabilities CAPABILITY_IAM
+> ```
+> (강사 공유 버킷명이 다르면 `--parameter-overrides CodeBucket=<버킷명>` 추가)
+
 ---
 
 ## 1. 부품 배포 (CF, 1회) — `deploy_labbase.sh`
@@ -146,9 +156,9 @@ CloudShell에서 만든 `function.zip` 을 콘솔에 올리려면 내 PC로 내�
 | `COFFEE_EMPLOYEE_API` | coffee-serverless 출력 `EmployeeApiUrl` |
 | `COFFEE_CUSTOMER_FN` | `coffee-customer` |
 | `COFFEE_EMPLOYEE_FN` | `coffee-employee` |
-| `CODE_BUCKET` | `coffee-lambda-code-<account>-apne2` |
-| `CUSTOMER_CLEAN_KEY` | `lambda/customer.zip` |
-| `EMPLOYEE_CLEAN_KEY` | `lambda/employee.zip` |
+| `CODE_BUCKET` | `samsung-cloud-architect` (공유 버킷) |
+| `CUSTOMER_CLEAN_KEY` | `coffee/customer.zip` |
+| `EMPLOYEE_CLEAN_KEY` | `coffee/employee.zip` |
 
 > coffee API 주소: `aws cloudformation describe-stacks --stack-name coffee-serverless
 > --query "Stacks[0].Outputs"` 에서 확인.

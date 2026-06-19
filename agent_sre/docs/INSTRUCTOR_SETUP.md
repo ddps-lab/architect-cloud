@@ -4,23 +4,29 @@
 
 ## 0. 공유 산출물 발행 (전역 1회) — `publish_artifacts.sh`
 
-CloudShell은 사양·용량이 빠듯해서 수강생이 직접 라이브러리 레이어(pip manylinux,
-약 80MB)나 injector(npm)를 빌드하면 부담이 큽니다. 그래서 **강사가 한 번만 빌드**해
-퍼블릭 읽기 공유 버킷에 올려두고, 수강생은 빌드 없이 `aws s3 cp` 로만 가져갑니다.
+CloudShell은 사양·용량이 빠듯해서 수강생이 직접 빌드(npm / pip manylinux 약 80MB)하면
+부담이 큽니다. 그래서 **강사가 한 번만 빌드**해 퍼블릭 읽기 공유 버킷
+(`samsung-cloud-architect`)에 올려둡니다. 수강생은 빌드 없이 그 버킷을 참조만 합니다.
 
 **CloudShell**(서울 리전)에서:
 
 ```sh
 git clone https://github.com/ddps-lab/architect-cloud.git
 cd architect-cloud/agent_sre
-./infra/publish_artifacts.sh         # injector.zip + layer.zip 빌드 → 공유 버킷 업로드
+./infra/publish_artifacts.sh         # coffee zip + injector.zip + layer.zip 빌드 → 공유 버킷
 # 출력된 SHARED_BUCKET 이름을 수강생에게 공유
 ```
 
+올라가는 산출물:
+- `coffee/customer.zip`, `coffee/employee.zip` — `ServerlessApp_CF` Lambda 코드
+  (수강생은 코드 버킷을 따로 안 만들고 이 버킷에서 바로 끌어옴)
+- `copilot/injector.zip` — LabBase 장애 주입기 코드
+- `copilot/layer.zip` — 수강생이 콘솔에서 의존성 레이어로 생성
+
 > 기본 공유 버킷명은 `samsung-cloud-architect` 입니다(수강생용 기본값과 동일).
 > 다른 버킷을 쓰려면 `SHARED_BUCKET=<버킷명> ./infra/publish_artifacts.sh` 로 발행하고,
-> 수강생에게도 같은 `SHARED_BUCKET` 을 앞에 붙여 실행하도록 안내하세요.
-> 산출물(Strands/awslabs 등)을 갱신했을 때만 다시 실행하면 됩니다.
+> 수강생 배포 명령에도 같은 버킷명을 `CodeBucket=` / `SHARED_BUCKET=` 로 전달하도록 안내.
+> 산출물(coffee 코드 / Strands 등)을 갱신했을 때만 다시 실행하면 됩니다.
 
 ## 1. 공유 채팅 웹 배포 (전역 1회)
 

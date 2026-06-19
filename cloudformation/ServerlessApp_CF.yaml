@@ -7,14 +7,15 @@ Description: >
 Parameters:
   CodeBucket:
     Type: String
-    Description: S3 bucket holding the packaged Lambda zips (created by utils/package_lambda.sh)
+    Default: samsung-cloud-architect
+    Description: 패키지된 Lambda zip 이 있는 버킷 (강사 공유 버킷 — 미리 만들 필요 없음)
   CustomerCodeKey:
     Type: String
-    Default: lambda/customer.zip
+    Default: coffee/customer.zip
     Description: S3 key of the customer Lambda package
   EmployeeCodeKey:
     Type: String
-    Default: lambda/employee.zip
+    Default: coffee/employee.zip
     Description: S3 key of the employee Lambda package
   DBUsername:
     Type: String

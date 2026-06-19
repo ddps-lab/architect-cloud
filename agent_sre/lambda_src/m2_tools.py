@@ -34,8 +34,8 @@ _FN = {
     "employee": os.environ.get("COFFEE_EMPLOYEE_FN", "coffee-employee"),
 }
 _CLEAN_KEY = {
-    "customer": os.environ.get("CUSTOMER_CLEAN_KEY", "lambda/customer.zip"),
-    "employee": os.environ.get("EMPLOYEE_CLEAN_KEY", "lambda/employee.zip"),
+    "customer": os.environ.get("CUSTOMER_CLEAN_KEY", "coffee/customer.zip"),
+    "employee": os.environ.get("EMPLOYEE_CLEAN_KEY", "coffee/employee.zip"),
 }
 
 

@@ -34,19 +34,32 @@ aws s3api put-bucket-policy --bucket "$SHARED_BUCKET" --region "$REGION" --polic
     "Effect": "Allow",
     "Principal": "*",
     "Action": "s3:GetObject",
-    "Resource": "arn:aws:s3:::${SHARED_BUCKET}/copilot/*"
+    "Resource": [
+      "arn:aws:s3:::${SHARED_BUCKET}/copilot/*",
+      "arn:aws:s3:::${SHARED_BUCKET}/coffee/*"
+    ]
   }]
 }
 JSON
 )"
 
-echo ">> [2/4] injector.zip 빌드 (Node)"
+echo ">> [2/5] coffee 마이크로서비스 빌드 (Node) → coffee/customer.zip, coffee/employee.zip"
+COFFEE_SRC="$(cd "$COPILOT/.." && pwd)/lambda_code/microservice"
+for svc in customer employee; do
+  CSV="$(mktemp -d)"
+  cp -r "$COFFEE_SRC/$svc/." "$CSV/"
+  ( cd "$CSV" && npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 && zip -qr "/tmp/coffee-$svc.zip" . -x "*.git*" )
+  aws s3 cp "/tmp/coffee-$svc.zip" "s3://$SHARED_BUCKET/coffee/$svc.zip" --region "$REGION"
+  rm -rf "$CSV" "/tmp/coffee-$svc.zip"
+done
+
+echo ">> [3/5] injector.zip 빌드 (Node)"
 INJ="$(mktemp -d)"
 cp -r "$COPILOT/faults/injector_lambda/." "$INJ/"
 ( cd "$INJ" && npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 && zip -qr /tmp/injector.zip . )
 aws s3 cp /tmp/injector.zip "s3://$SHARED_BUCKET/copilot/injector.zip" --region "$REGION"
 
-echo ">> [3/4] layer.zip 빌드 (Python, linux wheels)"
+echo ">> [4/5] layer.zip 빌드 (Python, linux wheels)"
 LYR="$(mktemp -d)"; mkdir -p "$LYR/python"
 python3 -m pip install -r "$COPILOT/requirements.txt" -t "$LYR/python" \
   --platform manylinux2014_x86_64 --python-version 3.12 --only-binary=:all: --quiet
@@ -54,15 +67,16 @@ rm -rf "$LYR/python"/boto3 "$LYR/python"/botocore "$LYR/python"/boto3-* "$LYR/py
 ( cd "$LYR" && zip -qr /tmp/layer.zip . -x "*.pyc" "*/__pycache__/*" )
 aws s3 cp /tmp/layer.zip "s3://$SHARED_BUCKET/copilot/layer.zip" --region "$REGION"
 
-echo ">> [4/4] 정리"
+echo ">> [5/5] 정리"
 rm -rf "$INJ" "$LYR" /tmp/injector.zip /tmp/layer.zip
 
 cat <<EOF
 
->> 발행 완료. 수강생에게 아래 공유 버킷 이름을 안내하세요:
+>> 발행 완료. 공유 버킷($SHARED_BUCKET)에 올라간 것:
+   coffee/customer.zip  coffee/employee.zip   (ServerlessApp_CF Lambda 코드)
+   copilot/injector.zip                       (LabBase 장애 주입기 코드)
+   copilot/layer.zip                          (학생이 콘솔에서 레이어로 생성)
 
-   SHARED_BUCKET = $SHARED_BUCKET
-
-   수강생은 deploy_labbase.sh 가 이 버킷에서 자동으로 cp 합니다
-   (기본값이 다르면: SHARED_BUCKET=$SHARED_BUCKET ./infra/deploy_labbase.sh).
+   수강생에게 공유 버킷명을 안내하세요: SHARED_BUCKET = $SHARED_BUCKET
+   (기본값과 다르면 ServerlessApp_CF / deploy_labbase 에 CodeBucket·SHARED_BUCKET 로 전달)
 EOF

@@ -17,13 +17,12 @@
 set -euo pipefail
 
 REGION="${1:-${AWS_REGION:-ap-northeast-2}}"
-ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COPILOT="$(cd "$HERE/.." && pwd)"
 COFFEE_STACK="coffee-serverless"
 STACK="copilot-labbase"
-CODE_BUCKET="coffee-lambda-code-${ACCOUNT}-apne2"          # 내 정규 coffee 빌드 버킷 (재배포 도구용)
 SHARED_BUCKET="${SHARED_BUCKET:-samsung-cloud-architect}"  # 강사 공유 산출물 버킷
+                                                           # (injector·layer·깨끗한 coffee zip)
 
 echo ">> [1/3] coffee-serverless 배선 읽기"
 out() { aws cloudformation describe-stacks --stack-name "$COFFEE_STACK" --region "$REGION" \
@@ -42,7 +41,7 @@ aws cloudformation deploy \
     "PrivateSubnetIds=${SUBNET1},${SUBNET2}" \
     "LambdaSecurityGroupId=${LAMBDA_SG}" \
     "DbHost=${DB_HOST}" \
-    "CodeBucket=${CODE_BUCKET}" \
+    "CodeBucket=${SHARED_BUCKET}" \
     "ArtifactsBucket=${SHARED_BUCKET}"
 
 echo ">> [3/3] 완료. 아래 출력값을 에이전트 Lambda 만들 때 사용하세요:"
