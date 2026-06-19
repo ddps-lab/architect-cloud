@@ -1,12 +1,14 @@
 #!/bin/bash
 ###############################################################################
 # LAB BASE 배포 (각 수강생이 자기 환경에 1회 실행).
-# injector Lambda(자기 RDS 대상) + 에이전트 IAM 역할 + 세션 버킷 + 의존성 레이어를
-# 만듭니다. 핵심 실습(S3 Vectors / KB / 에이전트 Lambda)은 이후 콘솔에서 직접.
+# 장애 주입 Lambda(자기 RDS 대상) + 에이전트 IAM 역할 + 세션 버킷을 만듭니다.
+# 핵심 실습(S3 Vectors / KB / 에이전트 Lambda)과 의존성 레이어는 이후 콘솔에서 직접.
 #
-# ※ CloudShell 사양/용량 부담을 피하려고 무거운 산출물(injector.zip / layer.zip)은
-#   강사가 미리 빌드해 공유 버킷에 올려둡니다. 이 스크립트는 빌드 없이 그것을
-#   내 CODE_BUCKET 으로 `aws s3 cp` 만 합니다.
+# ※ CloudShell 부담을 피하려고 빌드는 하지 않습니다. 무거운 산출물
+#   (injector.zip / layer.zip)은 강사가 미리 빌드해 공유 버킷
+#   (samsung-cloud-architect)에 올려둡니다.
+#     - injector.zip : 이 CF 가 공유 버킷에서 직접 참조해 배포
+#     - layer.zip    : 학생이 콘솔에서 그 S3 링크로 레이어를 직접 생성 (아래 안내)
 #
 # 사전: coffee-serverless 스택이 같은 환경에 배포돼 있어야 합니다.
 # 사용: ./infra/deploy_labbase.sh [region]
@@ -20,14 +22,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COPILOT="$(cd "$HERE/.." && pwd)"
 COFFEE_STACK="coffee-serverless"
 STACK="copilot-labbase"
-CODE_BUCKET="coffee-lambda-code-${ACCOUNT}-apne2"        # 내 정규 coffee 빌드 버킷 재사용
-SHARED_BUCKET="${SHARED_BUCKET:-copilot-artifacts-786382940258-apne2}"  # 강사 공유 버킷
+CODE_BUCKET="coffee-lambda-code-${ACCOUNT}-apne2"          # 내 정규 coffee 빌드 버킷 (재배포 도구용)
+SHARED_BUCKET="${SHARED_BUCKET:-samsung-cloud-architect}"  # 강사 공유 산출물 버킷
 
-echo ">> [1/4] 공유 산출물 가져오기 (빌드 없음, cp 만): $SHARED_BUCKET"
-aws s3 cp "s3://$SHARED_BUCKET/copilot/injector.zip" "s3://$CODE_BUCKET/copilot/injector.zip" --region "$REGION"
-aws s3 cp "s3://$SHARED_BUCKET/copilot/layer.zip"    "s3://$CODE_BUCKET/copilot/layer.zip"    --region "$REGION"
-
-echo ">> [2/4] coffee-serverless 배선 읽기"
+echo ">> [1/3] coffee-serverless 배선 읽기"
 out() { aws cloudformation describe-stacks --stack-name "$COFFEE_STACK" --region "$REGION" \
   --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
 res() { aws cloudformation describe-stack-resources --stack-name "$COFFEE_STACK" --region "$REGION" \
@@ -36,7 +34,7 @@ DB_HOST="$(out DBInstanceEndpoint)"
 SUBNET1="$(res PrivateSubnet1)"; SUBNET2="$(res PrivateSubnet2)"
 LAMBDA_SG="$(res LambdaSecurityGroup)"
 
-echo ">> [3/4] $STACK 배포"
+echo ">> [2/3] $STACK 배포 (injector 는 공유 버킷에서 직접 참조)"
 aws cloudformation deploy \
   --template-file "$COPILOT/infra/LabBase_CF.yaml" \
   --stack-name "$STACK" --capabilities CAPABILITY_NAMED_IAM --region "$REGION" \
@@ -44,13 +42,20 @@ aws cloudformation deploy \
     "PrivateSubnetIds=${SUBNET1},${SUBNET2}" \
     "LambdaSecurityGroupId=${LAMBDA_SG}" \
     "DbHost=${DB_HOST}" \
-    "CodeBucket=${CODE_BUCKET}"
+    "CodeBucket=${CODE_BUCKET}" \
+    "ArtifactsBucket=${SHARED_BUCKET}"
 
-echo ">> [4/4] injector 코드 강제 갱신 (같은 S3 키면 CFN이 안 끌어오므로)"
-aws lambda update-function-code --function-name coffee-fault-injector --region "$REGION" \
-  --s3-bucket "$CODE_BUCKET" --s3-key copilot/injector.zip --query LastModified --output text >/dev/null 2>&1 || true
-aws lambda wait function-updated --function-name coffee-fault-injector --region "$REGION" 2>/dev/null || true
-
-echo ">> 완료. 아래 출력값을 에이전트 Lambda 만들 때 사용하세요:"
+echo ">> [3/3] 완료. 아래 출력값을 에이전트 Lambda 만들 때 사용하세요:"
 aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \
   --query "Stacks[0].Outputs" --output table
+
+cat <<EOF
+
+>> [레이어는 직접 만듭니다] 공유 버킷의 layer.zip 으로 Lambda 레이어를 콘솔에서 생성:
+   Lambda → Layers → Create layer → Upload a file from Amazon S3
+
+   Amazon S3 링크 URL : https://${SHARED_BUCKET}.s3.${REGION}.amazonaws.com/copilot/layer.zip
+   호환 런타임         : Python 3.12
+
+   만든 레이어의 ARN(=DepsLayerArn)을 에이전트 Lambda 에 추가하세요.
+EOF

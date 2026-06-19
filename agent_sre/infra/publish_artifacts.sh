@@ -15,7 +15,7 @@ REGION="${1:-${AWS_REGION:-ap-northeast-2}}"
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COPILOT="$(cd "$HERE/.." && pwd)"
-SHARED_BUCKET="${SHARED_BUCKET:-copilot-artifacts-${ACCOUNT}-apne2}"
+SHARED_BUCKET="${SHARED_BUCKET:-samsung-cloud-architect}"
 
 echo ">> [1/4] 공유 버킷 준비: $SHARED_BUCKET (퍼블릭 읽기)"
 if ! aws s3api head-bucket --bucket "$SHARED_BUCKET" --region "$REGION" 2>/dev/null; then

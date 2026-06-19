@@ -2,9 +2,11 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   SRE Incident Copilot — LAB BASE (미리 배포되는 부품).
   각 수강생이 자신의 환경에 1회 배포합니다. 장애 주입 Lambda(자기 RDS 대상),
-  에이전트가 붙일 IAM 역할, 세션(기억) 버킷, 의존성 레이어를 만듭니다.
-  ※ 핵심 실습(S3 Vectors / Knowledge Base / 에이전트 Lambda)은 학생이 직접 콘솔에서
-  만듭니다 — 이 템플릿에 포함되지 않습니다. web-chat 도 별도(전역 1회)입니다.
+  에이전트가 붙일 IAM 역할, 세션(기억) 버킷을 만듭니다.
+  ※ 의존성 레이어는 학생이 콘솔에서 공유 버킷(samsung-cloud-architect) layer.zip
+  S3 링크로 직접 생성합니다. 핵심 실습(S3 Vectors / Knowledge Base / 에이전트 Lambda)
+  도 학생이 직접 콘솔에서 만듭니다 — 이 템플릿에 포함되지 않습니다.
+  web-chat 도 별도(전역 1회)입니다.
 
 Parameters:
   PrivateSubnetIds:
@@ -27,28 +29,16 @@ Parameters:
     Default: COFFEE
   CodeBucket:
     Type: String
-    Description: injector.zip / layer.zip / 정규 coffee 빌드(customer.zip/employee.zip)가 있는 버킷
+    Description: 정규 coffee 빌드(customer.zip/employee.zip)가 있는 버킷 (재배포 도구용)
+  ArtifactsBucket:
+    Type: String
+    Default: samsung-cloud-architect
+    Description: 공유 산출물(injector.zip / layer.zip)이 있는 루트 계정 버킷
   InjectorCodeKey:
     Type: String
     Default: copilot/injector.zip
-  LayerCodeKey:
-    Type: String
-    Default: copilot/layer.zip
 
 Resources:
-  ###########
-  # 의존성 레이어 (Strands/fastapi/uvicorn/mcp/awslabs ...)
-  ###########
-  DepsLayer:
-    Type: AWS::Lambda::LayerVersion
-    Properties:
-      LayerName: copilot-deps
-      CompatibleRuntimes:
-        - python3.12
-      Content:
-        S3Bucket: !Ref CodeBucket
-        S3Key: !Ref LayerCodeKey
-
   ###########
   # 세션(기억) 버킷 — 에이전트 S3SessionManager 용
   ###########
@@ -88,7 +78,7 @@ Resources:
       MemorySize: 256
       Role: !GetAtt InjectorRole.Arn
       Code:
-        S3Bucket: !Ref CodeBucket
+        S3Bucket: !Ref ArtifactsBucket
         S3Key: !Ref InjectorCodeKey
       VpcConfig:
         SecurityGroupIds:
@@ -166,9 +156,6 @@ Outputs:
   AgentRoleArn:
     Description: 학생 에이전트 Lambda 에 붙일 실행 역할
     Value: !GetAtt AgentRole.Arn
-  DepsLayerArn:
-    Description: 에이전트 Lambda 에 추가할 의존성 레이어
-    Value: !Ref DepsLayer
   SessionBucketName:
     Description: 에이전트 env SESSION_BUCKET 값
     Value: !Ref SessionBucket

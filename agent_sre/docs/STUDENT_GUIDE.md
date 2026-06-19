@@ -36,9 +36,9 @@ cd architect-cloud/agent_sre
 
 ## 1. 부품 배포 (CF, 1회) — `deploy_labbase.sh`
 
-장애 주입 Lambda(내 RDS 대상) + 에이전트 IAM 역할 + 세션 버킷 + 의존성 레이어를
-한 번에 만듭니다. 무거운 산출물(injector.zip·layer.zip)은 강사가 미리 빌드해
-공유 버킷에 올려뒀으므로, 이 스크립트는 **빌드 없이 그것을 내 버킷으로 복사만** 합니다
+장애 주입 Lambda(내 RDS 대상) + 에이전트 IAM 역할 + 세션 버킷을 한 번에 만듭니다.
+장애 주입 코드(injector.zip)는 강사가 미리 올려둔 공유 버킷
+(`samsung-cloud-architect`)에서 CF가 **직접 참조**하므로, 빌드도 복사도 없습니다
 (CloudShell 부담 없음).
 
 ```sh
@@ -51,10 +51,25 @@ cd agent_sre
 
 끝나면 출력 표에서 다음을 메모하세요:
 - `AgentRoleArn` — 에이전트 Lambda 실행 역할
-- `DepsLayerArn` — 의존성 레이어
 - `LwaLayerArn` — Lambda Web Adapter 레이어
 - `SessionBucketName` — env `SESSION_BUCKET`
 - `InjectorFunctionName` — env `INJECTOR_FN` (보통 `coffee-fault-injector`)
+
+또한 스크립트 마지막에 안내되는 **layer.zip 의 S3 링크 URL** 을 메모합니다(다음 단계).
+
+---
+
+## 1-B. 의존성 레이어 만들기 (콘솔, 직접)
+
+라이브러리(Strands/fastapi/uvicorn/mcp/awslabs...)는 강사가 미리 빌드해 공유
+버킷에 올려뒀습니다. 여러분은 그 S3 링크로 **레이어만 직접 생성**합니다(빌드 없음).
+
+1. **Lambda 콘솔 → Layers → Create layer**
+2. Name: `copilot-deps`
+3. **Upload a file from Amazon S3** 선택 → S3 링크 URL 붙여넣기:
+   `https://samsung-cloud-architect.s3.ap-northeast-2.amazonaws.com/copilot/layer.zip`
+4. Compatible runtimes: **Python 3.12**
+5. Create → 만들어진 **레이어 버전 ARN(`DepsLayerArn`)** 을 메모(4-4에서 사용)
 
 ---
 
@@ -112,8 +127,8 @@ CloudShell에서 만든 `function.zip` 을 콘솔에 올리려면 내 PC로 내�
 - **Timeout**: 5 min, **Memory**: 1024 MB
 
 ### 4-4. 레이어 추가 (Code 탭 → Layers → Add a layer → Specify an ARN)
-- `LwaLayerArn` (Lambda Web Adapter)
-- `DepsLayerArn` (의존성)
+- `LwaLayerArn` (Lambda Web Adapter, 1번 출력)
+- `DepsLayerArn` (의존성, 1-B에서 직접 만든 레이어)
 
 ### 4-5. 환경변수 (Configuration → Environment variables)
 

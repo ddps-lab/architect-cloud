@@ -17,9 +17,9 @@ cd architect-cloud/agent_sre
 # 출력된 SHARED_BUCKET 이름을 수강생에게 공유
 ```
 
-> 기본 공유 버킷명은 `copilot-artifacts-<강사계정>-apne2` 입니다. 수강생용
-> `deploy_labbase.sh` 의 기본값(`copilot-artifacts-786382940258-apne2`)과 다르면,
-> 수강생에게 `SHARED_BUCKET=<버킷명>` 을 앞에 붙여 실행하도록 안내하세요.
+> 기본 공유 버킷명은 `samsung-cloud-architect` 입니다(수강생용 기본값과 동일).
+> 다른 버킷을 쓰려면 `SHARED_BUCKET=<버킷명> ./infra/publish_artifacts.sh` 로 발행하고,
+> 수강생에게도 같은 `SHARED_BUCKET` 을 앞에 붙여 실행하도록 안내하세요.
 > 산출물(Strands/awslabs 등)을 갱신했을 때만 다시 실행하면 됩니다.
 
 ## 1. 공유 채팅 웹 배포 (전역 1회)
@@ -52,10 +52,11 @@ cd architect-cloud/agent_sre
 
 | 구분 | 누가 | 무엇 |
 |------|------|------|
-| **공유 산출물(injector.zip·layer.zip) 빌드·발행** | 강사(1회) | `infra/publish_artifacts.sh` → 퍼블릭 버킷 |
+| **공유 산출물(injector.zip·layer.zip) 빌드·발행** | 강사(1회) | `infra/publish_artifacts.sh` → `samsung-cloud-architect` |
 | 공유 채팅 웹 | 강사(1회) | S3+CloudFront SPA (`web-chat/`) |
 | coffee-serverless | 수강생(각자) | 대상 서비스 + RDS |
-| LabBase (injector·IAM 역할·세션버킷·레이어) | 수강생(각자, CF) | `infra/deploy_labbase.sh` (빌드 없이 cp) |
+| LabBase (injector·IAM 역할·세션버킷) | 수강생(각자, CF) | `infra/deploy_labbase.sh` (injector 는 공유 버킷 직접 참조) |
+| **의존성 레이어** | **수강생(직접, 콘솔)** | 공유 버킷 layer.zip S3 링크로 레이어 생성 |
 | **S3 Vectors / Knowledge Base / 적재** | **수강생(직접)** | 핵심 실습 |
 | **에이전트 Lambda 생성·편집** | **수강생(직접, 콘솔)** | 핵심 실습 |
 | 장애 주입 | 수강생(각자) | `faults/inject.sh` (자기 RDS 대상) |
