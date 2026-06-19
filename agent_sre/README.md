@@ -29,9 +29,11 @@ danluu 회고 모음을 지식베이스로 삼아, **하나의 AWS Strands 에�
 
 | 구분 | 누가 | 방법 |
 |------|------|------|
+| 공유 산출물(injector.zip·layer.zip) | 강사 (전역 1회) | `infra/publish_artifacts.sh` → `samsung-cloud-architect` |
 | 공유 채팅 웹 | 강사 (전역 1회) | `web-chat/deploy_chat.sh` |
 | coffee-serverless (대상+RDS) | 수강생 (각자) | `../cloudformation/ServerlessApp_CF.yaml` |
-| LabBase: 장애주입·IAM 역할·세션버킷·레이어 | 수강생 (각자, CF 1회) | `infra/deploy_labbase.sh` |
+| LabBase: 장애주입·IAM 역할·세션버킷 | 수강생 (각자, CF 1회) | `infra/deploy_labbase.sh` |
+| **의존성 레이어** | **수강생 (직접, 콘솔)** | 공유 버킷 layer.zip S3 링크로 생성 |
 | **S3 Vectors · Knowledge Base · 적재** | **수강생 (직접)** | 핵심 실습 |
 | **에이전트 Lambda 생성·편집** | **수강생 (직접, 콘솔)** | 핵심 실습 |
 | 장애 주입 | 수강생 (각자) | `faults/inject.sh` (자기 RDS) |
@@ -47,8 +49,9 @@ agent_sre/
 │   ├── m1_prompt.py m1_model.py m2_tools.py m3_memory.py
 │   └── m4_knowledge_base.py m5_aws_docs.py
 ├── infra/
-│   ├── LabBase_CF.yaml      injector·IAM역할·세션버킷·레이어 (수강생 1회)
-│   ├── deploy_labbase.sh    위 배포 + 코드/레이어 빌드·업로드
+│   ├── LabBase_CF.yaml      injector(공유버킷 참조)·IAM역할·세션버킷 (수강생 1회)
+│   ├── publish_artifacts.sh injector.zip·layer.zip 빌드→공유버킷 (강사 1회)
+│   ├── deploy_labbase.sh    CF 배포 (수강생, 빌드/복사 없음)
 │   └── build_function_zip.sh  function.zip(lambda_src) 생성
 ├── kb/                  setup_s3vectors.sh, ingest_danluu.py, data/(회고 20건)
 ├── faults/              inject.sh / restore.sh / injector_lambda/

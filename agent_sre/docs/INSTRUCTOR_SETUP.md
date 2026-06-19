@@ -2,6 +2,42 @@
 
 수강생 실습 전에 강사가 한 번 해두는 것들입니다.
 
+## 0. 공유 산출물 발행 (전역 1회) — `publish_artifacts.sh`
+
+CloudShell은 사양·용량이 빠듯해서 수강생이 직접 빌드(npm / pip manylinux 약 80MB)하면
+부담이 큽니다. 그래서 **강사가 한 번만 빌드**해 퍼블릭 읽기 공유 버킷
+(`samsung-cloud-architect`)에 올려둡니다. 수강생은 빌드 없이 그 버킷을 참조만 합니다.
+
+**CloudShell**(서울 리전)에서:
+
+```sh
+git clone https://github.com/ddps-lab/architect-cloud.git
+cd architect-cloud/agent_sre
+./infra/publish_artifacts.sh         # coffee zip + injector.zip + layer.zip 빌드 → 공유 버킷
+# 출력된 SHARED_BUCKET 이름을 수강생에게 공유
+```
+
+올라가는 산출물:
+- `coffee/customer.zip`, `coffee/employee.zip` — `ServerlessApp_CF` Lambda 코드
+  (수강생은 코드 버킷을 따로 안 만들고 이 버킷에서 바로 끌어옴)
+- `copilot/injector.zip` — LabBase 장애 주입기 코드
+- `copilot/layer.zip` — 수강생이 콘솔에서 의존성 레이어로 생성
+
+> 기본 공유 버킷명은 `samsung-cloud-architect` 입니다(수강생용 기본값과 동일).
+> 다른 버킷을 쓰려면 `SHARED_BUCKET=<버킷명> ./infra/publish_artifacts.sh` 로 발행하고,
+> 수강생 배포 명령에도 같은 버킷명을 `CodeBucket=` / `SHARED_BUCKET=` 로 전달하도록 안내.
+> 산출물(coffee 코드 / Strands 등)을 갱신했을 때만 다시 실행하면 됩니다.
+
+### CI 자동 발행 (GitHub Actions)
+
+위 스크립트는 `.github/workflows/publish-artifacts.yml` 로 자동화돼 있어, 보통은
+손으로 실행할 필요가 없습니다. coffee 코드·injector·`requirements.txt`·스크립트가
+바뀌어 **master 에 머지**되면 자동으로 빌드·발행되고, 수동 실행도 가능합니다
+(Actions 탭 → *Publish Lab Artifacts* → **Run workflow**).
+자격증명은 org secrets `HYU_DDPS_AWS_ID` / `HYU_DDPS_AWS_SECRET` 를 사용합니다
+(리전 `ap-northeast-2`, 버킷 `samsung-cloud-architect`). 마지막 스텝이 4개 산출물의
+S3 존재·크기를 검증합니다.
+
 ## 1. 공유 채팅 웹 배포 (전역 1회)
 
 정적 채팅 SPA를 한 벌만 배포하고, 그 URL을 모든 수강생에게 공유합니다. 수강생은
@@ -22,6 +58,7 @@ cd architect-cloud/agent_sre
 
 - 이 저장소(`agent_sre/`)
 - 공유 채팅 사이트 URL (위 1번 출력)
+- **공유 산출물 버킷명** `SHARED_BUCKET` (위 0번 출력) — 기본값과 다를 때만
 - 각자 **자기 AWS 환경에 `coffee-serverless` 스택이 배포돼 있어야 함**
   (대상 마이크로서비스 + RDS). → `../cloudformation/ServerlessApp_CF.yaml`
 - Bedrock 모델 액세스 활성화(ap-northeast-2): 사용할 모델 + Titan Text Embeddings v2
@@ -31,9 +68,11 @@ cd architect-cloud/agent_sre
 
 | 구분 | 누가 | 무엇 |
 |------|------|------|
+| **공유 산출물(injector.zip·layer.zip) 빌드·발행** | 강사(1회) | `infra/publish_artifacts.sh` → `samsung-cloud-architect` |
 | 공유 채팅 웹 | 강사(1회) | S3+CloudFront SPA (`web-chat/`) |
 | coffee-serverless | 수강생(각자) | 대상 서비스 + RDS |
-| LabBase (injector·IAM 역할·세션버킷·레이어) | 수강생(각자, CF) | `infra/deploy_labbase.sh` |
+| LabBase (injector·IAM 역할·세션버킷) | 수강생(각자, CF) | `infra/deploy_labbase.sh` (injector 는 공유 버킷 직접 참조) |
+| **의존성 레이어** | **수강생(직접, 콘솔)** | 공유 버킷 layer.zip S3 링크로 레이어 생성 |
 | **S3 Vectors / Knowledge Base / 적재** | **수강생(직접)** | 핵심 실습 |
 | **에이전트 Lambda 생성·편집** | **수강생(직접, 콘솔)** | 핵심 실습 |
 | 장애 주입 | 수강생(각자) | `faults/inject.sh` (자기 RDS 대상) |
