@@ -37,12 +37,17 @@ cd architect-cloud/agent_sre
 ## 1. 부품 배포 (CF, 1회) — `deploy_labbase.sh`
 
 장애 주입 Lambda(내 RDS 대상) + 에이전트 IAM 역할 + 세션 버킷 + 의존성 레이어를
-한 번에 만듭니다.
+한 번에 만듭니다. 무거운 산출물(injector.zip·layer.zip)은 강사가 미리 빌드해
+공유 버킷에 올려뒀으므로, 이 스크립트는 **빌드 없이 그것을 내 버킷으로 복사만** 합니다
+(CloudShell 부담 없음).
 
 ```sh
 cd agent_sre
 ./infra/deploy_labbase.sh
 ```
+
+> 강사가 알려준 공유 버킷명이 기본값과 다르면 앞에 붙여 실행하세요:
+> `SHARED_BUCKET=<강사가 알려준 버킷> ./infra/deploy_labbase.sh`
 
 끝나면 출력 표에서 다음을 메모하세요:
 - `AgentRoleArn` — 에이전트 Lambda 실행 역할
