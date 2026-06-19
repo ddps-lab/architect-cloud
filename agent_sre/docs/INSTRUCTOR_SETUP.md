@@ -28,6 +28,16 @@ cd architect-cloud/agent_sre
 > 수강생 배포 명령에도 같은 버킷명을 `CodeBucket=` / `SHARED_BUCKET=` 로 전달하도록 안내.
 > 산출물(coffee 코드 / Strands 등)을 갱신했을 때만 다시 실행하면 됩니다.
 
+### CI 자동 발행 (GitHub Actions)
+
+위 스크립트는 `.github/workflows/publish-artifacts.yml` 로 자동화돼 있어, 보통은
+손으로 실행할 필요가 없습니다. coffee 코드·injector·`requirements.txt`·스크립트가
+바뀌어 **master 에 머지**되면 자동으로 빌드·발행되고, 수동 실행도 가능합니다
+(Actions 탭 → *Publish Lab Artifacts* → **Run workflow**).
+자격증명은 org secrets `HYU_DDPS_AWS_ID` / `HYU_DDPS_AWS_SECRET` 를 사용합니다
+(리전 `ap-northeast-2`, 버킷 `samsung-cloud-architect`). 마지막 스텝이 4개 산출물의
+S3 존재·크기를 검증합니다.
+
 ## 1. 공유 채팅 웹 배포 (전역 1회)
 
 정적 채팅 SPA를 한 벌만 배포하고, 그 URL을 모든 수강생에게 공유합니다. 수강생은

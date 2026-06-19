@@ -1,0 +1,68 @@
+name: Publish Lab Artifacts
+
+# SRE 실습 공유 산출물(coffee Lambda 코드 / injector / 의존성 레이어)을 빌드해
+# 공유 버킷(samsung-cloud-architect)에 발행합니다. publish_artifacts.sh 를 그대로 실행.
+# org secrets: HYU_DDPS_AWS_ID / HYU_DDPS_AWS_SECRET
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'agent_sre/requirements.txt'
+      - 'agent_sre/faults/injector_lambda/**'
+      - 'agent_sre/infra/publish_artifacts.sh'
+      - 'lambda_code/microservice/**'
+      - '.github/workflows/publish-artifacts.yml'
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  SHARED_BUCKET: samsung-cloud-architect
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.HYU_DDPS_AWS_ID }}
+          aws-secret-access-key: ${{ secrets.HYU_DDPS_AWS_SECRET }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build & publish artifacts
+        working-directory: agent_sre
+        run: ./infra/publish_artifacts.sh
+
+      - name: Verify artifacts in S3
+        run: |
+          set -euo pipefail
+          fail=0
+          for key in coffee/customer.zip coffee/employee.zip copilot/injector.zip copilot/layer.zip; do
+            size=$(aws s3api head-object --bucket "$SHARED_BUCKET" --key "$key" \
+              --region "$AWS_REGION" --query 'ContentLength' --output text 2>/dev/null || echo "MISSING")
+            if [ "$size" = "MISSING" ] || [ "$size" = "0" ]; then
+              echo "::error::$key 누락 또는 0바이트 ($size)"; fail=1
+            else
+              echo "OK  $key  ($size bytes)"
+            fi
+          done
+          exit $fail

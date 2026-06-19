@@ -17,7 +17,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COPILOT="$(cd "$HERE/.." && pwd)"
 SHARED_BUCKET="${SHARED_BUCKET:-samsung-cloud-architect}"
 
-echo ">> [1/4] 공유 버킷 준비: $SHARED_BUCKET (퍼블릭 읽기)"
+echo ">> [1/5] 공유 버킷 준비: $SHARED_BUCKET (퍼블릭 읽기)"
 if ! aws s3api head-bucket --bucket "$SHARED_BUCKET" --region "$REGION" 2>/dev/null; then
   aws s3api create-bucket --bucket "$SHARED_BUCKET" --region "$REGION" \
     --create-bucket-configuration LocationConstraint="$REGION" >/dev/null
