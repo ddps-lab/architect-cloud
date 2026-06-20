@@ -20,7 +20,7 @@ STACK="copilot-labbase"
 
 echo ">> $STACK 배포 (VPC 배선은 coffee-serverless Export 에서 자동 import)"
 aws cloudformation deploy \
-  --template-file "$COPILOT/infra/LabBase_CF.yaml" \
+  --template-file "$(cd "$COPILOT/.." && pwd)/cloudformation/AgentBase_CF.yaml" \
   --stack-name "$STACK" --capabilities CAPABILITY_NAMED_IAM --region "$REGION"
 
 echo ">> 완료. 아래 출력값을 에이전트 Lambda 만들 때 사용하세요:"

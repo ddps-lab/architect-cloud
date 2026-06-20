@@ -53,13 +53,14 @@ for svc in customer employee; do
   rm -rf "$CSV" "/tmp/coffee-$svc.zip"
 done
 
-echo ">> [3/5] injector.zip 빌드 (Node) + LabBase 템플릿 업로드"
+echo ">> [3/5] injector.zip 빌드 (Node) + AgentBase 템플릿 업로드"
 INJ="$(mktemp -d)"
 cp -r "$COPILOT/faults/injector_lambda/." "$INJ/"
 ( cd "$INJ" && npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 && zip -qr /tmp/injector.zip . )
 aws s3 cp /tmp/injector.zip "s3://$SHARED_BUCKET/copilot/injector.zip" --region "$REGION"
-# 학생이 콘솔에서 'Amazon S3 URL' 로 바로 배포할 수 있게 LabBase 템플릿도 발행
-aws s3 cp "$COPILOT/infra/LabBase_CF.yaml" "s3://$SHARED_BUCKET/copilot/LabBase_CF.yaml" --region "$REGION"
+# 학생이 콘솔에서 'Amazon S3 URL' 로 바로 배포할 수 있게 AgentBase 템플릿도 발행
+aws s3 cp "$(cd "$COPILOT/.." && pwd)/cloudformation/AgentBase_CF.yaml" \
+  "s3://$SHARED_BUCKET/copilot/AgentBase_CF.yaml" --region "$REGION"
 
 echo ">> [4/5] layer.zip 빌드 (Python, linux wheels)"
 LYR="$(mktemp -d)"; mkdir -p "$LYR/python"
@@ -76,12 +77,12 @@ cat <<EOF
 
 >> 발행 완료. 공유 버킷($SHARED_BUCKET)에 올라간 것:
    coffee/customer.zip  coffee/employee.zip   (ServerlessApp_CF Lambda 코드)
-   copilot/injector.zip                       (LabBase 장애 주입기 코드)
-   copilot/LabBase_CF.yaml                     (학생이 콘솔에서 S3 URL 로 배포)
+   copilot/injector.zip                       (AgentBase 장애 주입기 코드)
+   copilot/AgentBase_CF.yaml                   (학생이 콘솔에서 S3 URL 로 배포)
    copilot/layer.zip                          (학생이 콘솔에서 레이어로 생성)
 
-   LabBase 콘솔 배포용 템플릿 S3 URL:
-   https://$SHARED_BUCKET.s3.$REGION.amazonaws.com/copilot/LabBase_CF.yaml
+   AgentBase 콘솔 배포용 템플릿 S3 URL:
+   https://$SHARED_BUCKET.s3.$REGION.amazonaws.com/copilot/AgentBase_CF.yaml
 
    수강생에게 공유 버킷명을 안내하세요: SHARED_BUCKET = $SHARED_BUCKET
    (기본값과 다르면 ServerlessApp_CF / deploy_labbase 에 CodeBucket·SHARED_BUCKET 로 전달)
