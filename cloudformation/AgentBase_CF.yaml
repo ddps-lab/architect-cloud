@@ -87,7 +87,7 @@ Resources:
   AgentManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: !Sub copilot-agent-${AWS::Region}
+      ManagedPolicyName: !Sub agent-base-policy-${AWS::Region}
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -137,7 +137,7 @@ Resources:
   AgentRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub copilot-agent-role-${AWS::Region}
+      RoleName: !Sub agent-base-role-${AWS::Region}
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:

@@ -36,7 +36,8 @@ aws s3api put-bucket-policy --bucket "$SHARED_BUCKET" --region "$REGION" --polic
     "Action": "s3:GetObject",
     "Resource": [
       "arn:aws:s3:::${SHARED_BUCKET}/copilot/*",
-      "arn:aws:s3:::${SHARED_BUCKET}/coffee/*"
+      "arn:aws:s3:::${SHARED_BUCKET}/coffee/*",
+      "arn:aws:s3:::${SHARED_BUCKET}/cloudformation/*"
     ]
   }]
 }
@@ -53,14 +54,16 @@ for svc in customer employee; do
   rm -rf "$CSV" "/tmp/coffee-$svc.zip"
 done
 
-echo ">> [3/5] injector.zip 빌드 (Node) + AgentBase 템플릿 업로드"
+echo ">> [3/5] injector.zip 빌드 (Node) + CF 템플릿 업로드"
 INJ="$(mktemp -d)"
 cp -r "$COPILOT/faults/injector_lambda/." "$INJ/"
 ( cd "$INJ" && npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 && zip -qr /tmp/injector.zip . )
 aws s3 cp /tmp/injector.zip "s3://$SHARED_BUCKET/copilot/injector.zip" --region "$REGION"
-# 학생이 콘솔에서 'Amazon S3 URL' 로 바로 배포할 수 있게 AgentBase 템플릿도 발행
-aws s3 cp "$(cd "$COPILOT/.." && pwd)/cloudformation/AgentBase_CF.yaml" \
-  "s3://$SHARED_BUCKET/copilot/AgentBase_CF.yaml" --region "$REGION"
+# 학생이 콘솔에서 'Amazon S3 URL' 로 바로 배포할 수 있게 CF 템플릿 3종을 cloudformation/ 로 발행
+CF_DIR="$(cd "$COPILOT/.." && pwd)/cloudformation"
+for tpl in AgentBase_CF ServerlessApp_CF HighAvailability_CF; do
+  aws s3 cp "$CF_DIR/$tpl.yaml" "s3://$SHARED_BUCKET/cloudformation/$tpl.yaml" --region "$REGION"
+done
 
 echo ">> [4/5] layer.zip 빌드 (Python, linux wheels)"
 LYR="$(mktemp -d)"; mkdir -p "$LYR/python"
@@ -78,11 +81,13 @@ cat <<EOF
 >> 발행 완료. 공유 버킷($SHARED_BUCKET)에 올라간 것:
    coffee/customer.zip  coffee/employee.zip   (ServerlessApp_CF Lambda 코드)
    copilot/injector.zip                       (AgentBase 장애 주입기 코드)
-   copilot/AgentBase_CF.yaml                   (학생이 콘솔에서 S3 URL 로 배포)
    copilot/layer.zip                          (학생이 콘솔에서 레이어로 생성)
+   cloudformation/AgentBase_CF.yaml           (콘솔 S3 URL 배포)
+   cloudformation/ServerlessApp_CF.yaml       (콘솔 S3 URL 배포)
+   cloudformation/HighAvailability_CF.yaml    (콘솔 S3 URL 배포)
 
-   AgentBase 콘솔 배포용 템플릿 S3 URL:
-   https://$SHARED_BUCKET.s3.$REGION.amazonaws.com/copilot/AgentBase_CF.yaml
+   콘솔 배포용 템플릿 S3 URL (예: AgentBase):
+   https://$SHARED_BUCKET.s3.$REGION.amazonaws.com/cloudformation/AgentBase_CF.yaml
 
    수강생에게 공유 버킷명을 안내하세요: SHARED_BUCKET = $SHARED_BUCKET
    (기본값과 다르면 ServerlessApp_CF / deploy_labbase 에 CodeBucket·SHARED_BUCKET 로 전달)
