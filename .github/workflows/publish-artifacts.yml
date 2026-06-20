@@ -17,6 +17,8 @@ on:
       - 'cloudformation/AgentBase_CF.yaml'
       - 'cloudformation/ServerlessApp_CF.yaml'
       - 'cloudformation/HighAvailability_CF.yaml'
+      - 's3_customer/**'
+      - 's3_employee/**'
       - 'lambda_code/microservice/**'
       - '.github/workflows/publish-artifacts.yml'
 

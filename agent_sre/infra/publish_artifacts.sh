@@ -37,7 +37,8 @@ aws s3api put-bucket-policy --bucket "$SHARED_BUCKET" --region "$REGION" --polic
     "Resource": [
       "arn:aws:s3:::${SHARED_BUCKET}/copilot/*",
       "arn:aws:s3:::${SHARED_BUCKET}/coffee/*",
-      "arn:aws:s3:::${SHARED_BUCKET}/cloudformation/*"
+      "arn:aws:s3:::${SHARED_BUCKET}/cloudformation/*",
+      "arn:aws:s3:::${SHARED_BUCKET}/frontend/*"
     ]
   }]
 }
@@ -53,6 +54,11 @@ for svc in customer employee; do
   aws s3 cp "/tmp/coffee-$svc.zip" "s3://$SHARED_BUCKET/coffee/$svc.zip" --region "$REGION"
   rm -rf "$CSV" "/tmp/coffee-$svc.zip"
 done
+
+echo ">> [2.5/5] 프론트엔드 소스 업로드 (frontend/customer, frontend/employee)"
+REPO_ROOT="$(cd "$COPILOT/.." && pwd)"
+aws s3 sync "$REPO_ROOT/s3_customer" "s3://$SHARED_BUCKET/frontend/customer" --delete --region "$REGION" >/dev/null
+aws s3 sync "$REPO_ROOT/s3_employee" "s3://$SHARED_BUCKET/frontend/employee" --delete --region "$REGION" >/dev/null
 
 echo ">> [3/5] injector.zip 빌드 (Node) + CF 템플릿 업로드"
 INJ="$(mktemp -d)"
@@ -80,6 +86,7 @@ cat <<EOF
 
 >> 발행 완료. 공유 버킷($SHARED_BUCKET)에 올라간 것:
    coffee/customer.zip  coffee/employee.zip   (ServerlessApp_CF Lambda 코드)
+   frontend/customer/*  frontend/employee/*   (정적 프론트 소스 — 스택이 자동 발행)
    copilot/injector.zip                       (AgentBase 장애 주입기 코드)
    copilot/layer.zip                          (학생이 콘솔에서 레이어로 생성)
    cloudformation/AgentBase_CF.yaml           (콘솔 S3 URL 배포)

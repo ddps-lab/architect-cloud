@@ -17,6 +17,14 @@ Parameters:
     Type: String
     Default: coffee/employee.zip
     Description: S3 key of the employee Lambda package
+  ArtifactsBucket:
+    Type: String
+    Default: samsung-cloud-architect
+    Description: 프론트엔드 소스(frontend/customer, frontend/employee)가 있는 공유 버킷
+  FrontendPrefix:
+    Type: String
+    Default: frontend
+    Description: 공유 버킷 내 프론트엔드 소스 prefix
   DBUsername:
     Type: String
     Default: nodeapp
@@ -516,10 +524,12 @@ Resources:
                 AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${EmployeeDistribution}
 
   ###########
-  # 스택 삭제 시 프론트엔드 버킷 자동 비우기 (custom resource)
-  # → 버킷이 비어있지 않아 DeleteStack 이 실패하는 문제 방지
+  # 프론트엔드 자동 발행 (custom resource)
+  #  - 생성/업데이트: 공유 버킷의 프론트 소스를 받아 YOUR_API_URL 을 이 스택의
+  #    API GW 주소로 치환해 프론트 버킷에 업로드 + CloudFront 무효화
+  #  - 삭제: 프론트 버킷 비우기 (버킷이 안 비어 DeleteStack 실패하는 문제 방지)
   ###########
-  BucketCleanupRole:
+  FrontendManagerRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -532,10 +542,19 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: empty-frontend-buckets
+        - PolicyName: manage-frontend-buckets
           PolicyDocument:
             Version: 2012-10-17
             Statement:
+              # 프론트 소스 읽기 (공유 버킷)
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${ArtifactsBucket}
+                  - !Sub arn:aws:s3:::${ArtifactsBucket}/*
+              # 프론트 버킷 쓰기/비우기
               - Effect: Allow
                 Action:
                   - s3:ListBucket
@@ -545,62 +564,114 @@ Resources:
                   - !GetAtt EmployeeBucket.Arn
               - Effect: Allow
                 Action:
+                  - s3:PutObject
                   - s3:DeleteObject
                   - s3:DeleteObjectVersion
                 Resource:
                   - !Sub ${CustomerBucket.Arn}/*
                   - !Sub ${EmployeeBucket.Arn}/*
+              # CloudFront 무효화
+              - Effect: Allow
+                Action: cloudfront:CreateInvalidation
+                Resource: "*"
 
-  BucketCleanupFunction:
+  FrontendManagerFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub ${AWS::StackName}-bucket-cleanup
-      Runtime: python3.12
+      FunctionName: !Sub ${AWS::StackName}-frontend-manager
+      Runtime: python3.13
       Handler: index.handler
-      Timeout: 120
-      MemorySize: 128
-      Role: !GetAtt BucketCleanupRole.Arn
+      Timeout: 300
+      MemorySize: 256
+      Role: !GetAtt FrontendManagerRole.Arn
       Code:
         ZipFile: |
           import json, boto3
           from urllib.request import Request, urlopen
 
+          s3 = boto3.client("s3")
+          cf = boto3.client("cloudfront")
+
+          CT = {".html":"text/html",".css":"text/css",".js":"application/javascript",
+                ".json":"application/json",".map":"application/json",".jpg":"image/jpeg",
+                ".jpeg":"image/jpeg",".png":"image/png",".ico":"image/x-icon",
+                ".svg":"image/svg+xml",".woff":"font/woff",".woff2":"font/woff2"}
+
+          def ctype(key):
+              k = key.lower()
+              for ext, t in CT.items():
+                  if k.endswith(ext):
+                      return t
+              return "binary/octet-stream"
+
           def send(event, context, status, reason=""):
               body = json.dumps({
                   "Status": status,
-                  "Reason": reason or "see CloudWatch log " + context.log_stream_name,
-                  "PhysicalResourceId": event.get("PhysicalResourceId", context.log_stream_name),
-                  "StackId": event["StackId"],
-                  "RequestId": event["RequestId"],
-                  "LogicalResourceId": event["LogicalResourceId"],
-                  "Data": {},
+                  "Reason": reason or "see CloudWatch " + context.log_stream_name,
+                  "PhysicalResourceId": event.get("PhysicalResourceId", event["LogicalResourceId"]),
+                  "StackId": event["StackId"], "RequestId": event["RequestId"],
+                  "LogicalResourceId": event["LogicalResourceId"], "Data": {},
               }).encode()
-              req = Request(event["ResponseURL"], data=body, method="PUT",
-                            headers={"content-type": "", "content-length": str(len(body))})
-              urlopen(req)
+              urlopen(Request(event["ResponseURL"], data=body, method="PUT",
+                              headers={"content-type": "", "content-length": str(len(body))}))
+
+          def publish(p):
+              src, dst, api = p["SourceBucket"], p["TargetBucket"], p["ApiUrl"]
+              prefix = p["SourcePrefix"].rstrip("/") + "/"
+              for page in s3.get_paginator("list_objects_v2").paginate(Bucket=src, Prefix=prefix):
+                  for obj in page.get("Contents", []):
+                      key = obj["Key"]
+                      rel = key[len(prefix):]
+                      if not rel:
+                          continue
+                      data = s3.get_object(Bucket=src, Key=key)["Body"].read()
+                      if key.lower().endswith(".html"):
+                          data = data.replace(b"YOUR_API_URL", api.encode())
+                      s3.put_object(Bucket=dst, Key=rel, Body=data, ContentType=ctype(key))
 
           def handler(event, context):
+              rt = event["RequestType"]
               try:
-                  if event["RequestType"] == "Delete":
-                      bucket = event["ResourceProperties"]["BucketName"]
-                      boto3.resource("s3").Bucket(bucket).object_versions.delete()
+                  p = event["ResourceProperties"]
+                  if rt == "Delete":
+                      boto3.resource("s3").Bucket(p["TargetBucket"]).object_versions.delete()
+                  else:
+                      publish(p)
+                      dist = p.get("DistributionId")
+                      if dist:
+                          try:
+                              cf.create_invalidation(DistributionId=dist, InvalidationBatch={
+                                  "Paths": {"Quantity": 1, "Items": ["/*"]},
+                                  "CallerReference": event["RequestId"]})
+                          except Exception as e:
+                              print("invalidation skipped:", e)
                   send(event, context, "SUCCESS")
               except Exception as e:
-                  # 삭제를 막지 않도록 best-effort 로 SUCCESS 보고
-                  print("cleanup error:", e)
-                  send(event, context, "SUCCESS", reason=str(e))
+                  print("error:", e)
+                  # 삭제는 막지 않도록 SUCCESS, 생성/업데이트 실패는 FAILED 로 알림
+                  send(event, context, "SUCCESS" if rt == "Delete" else "FAILED", reason=str(e))
 
-  CustomerBucketCleanup:
-    Type: Custom::EmptyBucket
+  CustomerFrontend:
+    Type: Custom::Frontend
+    DependsOn: CustomerBucketPolicy
     Properties:
-      ServiceToken: !GetAtt BucketCleanupFunction.Arn
-      BucketName: !Ref CustomerBucket
+      ServiceToken: !GetAtt FrontendManagerFunction.Arn
+      SourceBucket: !Ref ArtifactsBucket
+      SourcePrefix: !Sub ${FrontendPrefix}/customer
+      TargetBucket: !Ref CustomerBucket
+      ApiUrl: !GetAtt CustomerApi.ApiEndpoint
+      DistributionId: !Ref CustomerDistribution
 
-  EmployeeBucketCleanup:
-    Type: Custom::EmptyBucket
+  EmployeeFrontend:
+    Type: Custom::Frontend
+    DependsOn: EmployeeBucketPolicy
     Properties:
-      ServiceToken: !GetAtt BucketCleanupFunction.Arn
-      BucketName: !Ref EmployeeBucket
+      ServiceToken: !GetAtt FrontendManagerFunction.Arn
+      SourceBucket: !Ref ArtifactsBucket
+      SourcePrefix: !Sub ${FrontendPrefix}/employee
+      TargetBucket: !Ref EmployeeBucket
+      ApiUrl: !GetAtt EmployeeApi.ApiEndpoint
+      DistributionId: !Ref EmployeeDistribution
 
 Outputs:
   DBInstanceEndpoint:
