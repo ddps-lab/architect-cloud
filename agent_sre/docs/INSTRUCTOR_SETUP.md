@@ -20,7 +20,9 @@ cd architect-cloud/agent_sre
 올라가는 산출물:
 - `coffee/customer.zip`, `coffee/employee.zip` — `ServerlessApp_CF` Lambda 코드
   (수강생은 코드 버킷을 따로 안 만들고 이 버킷에서 바로 끌어옴)
-- `copilot/injector.zip` — LabBase 장애 주입기 코드
+- `copilot/injector.zip` — AgentBase 장애 주입기 코드
+- `cloudformation/AgentBase_CF.yaml` — 수강생이 콘솔에서 S3 URL 로 배포하는 AgentBase 템플릿
+- `cloudformation/ServerlessApp_CF.yaml`, `cloudformation/HighAvailability_CF.yaml` — 콘솔 S3 URL 배포용
 - `copilot/layer.zip` — 수강생이 콘솔에서 의존성 레이어로 생성
 
 > 기본 공유 버킷명은 `samsung-cloud-architect` 입니다(수강생용 기본값과 동일).

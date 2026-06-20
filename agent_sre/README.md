@@ -49,14 +49,17 @@ agent_sre/
 │   ├── m1_prompt.py m1_model.py m2_tools.py m3_memory.py
 │   └── m4_knowledge_base.py m5_aws_docs.py
 ├── infra/
-│   ├── LabBase_CF.yaml      injector(공유버킷 참조)·IAM역할·세션버킷 (수강생 1회)
-│   ├── publish_artifacts.sh injector.zip·layer.zip 빌드→공유버킷 (강사 1회)
-│   ├── deploy_labbase.sh    CF 배포 (수강생, 빌드/복사 없음)
+│   ├── publish_artifacts.sh injector.zip·layer.zip·coffee zip 빌드→공유버킷 (강사 1회)
+│   ├── deploy_labbase.sh    AgentBase 스택 배포 (수강생, CLI 선택지)
 │   └── build_function_zip.sh  function.zip(lambda_src) 생성
 ├── kb/                  setup_s3vectors.sh, ingest_danluu.py, data/(회고 20건)
 ├── faults/              inject.sh / restore.sh / injector_lambda/
 ├── web-chat/            공유 채팅 SPA + ChatWeb_CF.yaml + deploy_chat.sh
 └── docs/                STUDENT_GUIDE.md, INSTRUCTOR_SETUP.md
+
+../cloudformation/
+├── ServerlessApp_CF.yaml   coffee 대상 서비스(VPC+RDS+Lambda+APIGW+S3+CF)
+└── AgentBase_CF.yaml       injector(공유버킷 참조)·IAM역할·세션버킷 (수강생 1회)
 ```
 
 ## 장애 ↔ 실제 회고 (지식베이스 20건이 이 메커니즘들에 대응)
