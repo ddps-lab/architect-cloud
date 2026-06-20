@@ -16,7 +16,7 @@ set -euo pipefail
 REGION="${1:-${AWS_REGION:-ap-northeast-2}}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COPILOT="$(cd "$HERE/.." && pwd)"
-STACK="copilot-labbase"
+STACK="agent-base"
 
 echo ">> $STACK 배포 (VPC 배선은 coffee-serverless Export 에서 자동 import)"
 aws cloudformation deploy \

@@ -55,7 +55,7 @@ cd architect-cloud/agent_sre
 1. **CloudFormation 콘솔 → Create stack → With new resources**
 2. Template source: **Amazon S3 URL** 선택 후 붙여넣기:
    `https://samsung-cloud-architect.s3.ap-northeast-2.amazonaws.com/copilot/AgentBase_CF.yaml`
-3. Stack name: `copilot-labbase`
+3. Stack name: `agent-base`
 4. Parameters: **그대로 둠** (전부 기본값 — coffee 스택명이 `coffee-serverless` 가
    아니면 `CoffeeStackName` 만 바꿉니다)
 5. 다음 화면에서 **"I acknowledge that AWS CloudFormation might create IAM resources
@@ -222,8 +222,8 @@ curl -s <FunctionURL>            # {"ok":true}
 aws s3 rm s3://<KB_BUCKET> --recursive
 aws s3vectors delete-index --vector-bucket-name <vec-bucket> --index-name postmortems
 aws s3vectors delete-vector-bucket --vector-bucket-name <vec-bucket>
-# LabBase : 콘솔 CloudFormation 에서 copilot-labbase 스택 삭제 (또는 CLI)
-aws cloudformation delete-stack --stack-name copilot-labbase
+# AgentBase : 콘솔 CloudFormation 에서 agent-base 스택 삭제 (또는 CLI)
+aws cloudformation delete-stack --stack-name agent-base
 # coffee-serverless : 콘솔/CLI 로 스택 삭제 — 프론트엔드 버킷은 자동으로 비워짐
 aws cloudformation delete-stack --stack-name coffee-serverless
 ```
