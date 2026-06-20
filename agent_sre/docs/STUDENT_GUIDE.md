@@ -78,7 +78,7 @@ cd agent_sre
 2. Name: `copilot-deps`
 3. **Upload a file from Amazon S3** 선택 → S3 링크 URL 붙여넣기:
    `https://samsung-cloud-architect.s3.ap-northeast-2.amazonaws.com/copilot/layer.zip`
-4. Compatible runtimes: **Python 3.12**
+4. Compatible runtimes: **Python 3.14**
 5. Create → 만들어진 **레이어 버전 ARN(`DepsLayerArn`)** 을 메모(4-4에서 사용)
 
 ---
@@ -128,7 +128,7 @@ CloudShell에서 만든 `function.zip` 을 콘솔에 올리려면 내 PC로 내�
 
 ### 4-2. 함수 생성
 - **Lambda 콘솔 → Create function → Author from scratch**
-- Name: `strands-incident-copilot`, Runtime: **Python 3.12**, Arch: **x86_64**
+- Name: `strands-incident-copilot`, Runtime: **Python 3.14**, Arch: **x86_64**
 - **Change default execution role → Use an existing role →** `AgentRoleArn`(1번)
 - Create → **Code → Upload from → .zip** → `function.zip`
 
