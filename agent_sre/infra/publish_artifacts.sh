@@ -62,7 +62,7 @@ aws s3 cp /tmp/injector.zip "s3://$SHARED_BUCKET/copilot/injector.zip" --region 
 echo ">> [4/5] layer.zip 빌드 (Python, linux wheels)"
 LYR="$(mktemp -d)"; mkdir -p "$LYR/python"
 python3 -m pip install -r "$COPILOT/requirements.txt" -t "$LYR/python" \
-  --platform manylinux2014_x86_64 --python-version 3.12 --only-binary=:all: --quiet
+  --platform manylinux2014_x86_64 --python-version 3.14 --only-binary=:all: --quiet
 rm -rf "$LYR/python"/boto3 "$LYR/python"/botocore "$LYR/python"/boto3-* "$LYR/python"/botocore-*
 ( cd "$LYR" && zip -qr /tmp/layer.zip . -x "*.pyc" "*/__pycache__/*" )
 aws s3 cp /tmp/layer.zip "s3://$SHARED_BUCKET/copilot/layer.zip" --region "$REGION"

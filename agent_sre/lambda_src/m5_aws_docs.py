@@ -22,7 +22,7 @@ def load():
         _client = MCPClient(
             lambda: stdio_client(
                 StdioServerParameters(
-                    command=os.environ.get("MCP_PYTHON", "python3.12"),
+                    command=os.environ.get("MCP_PYTHON", "python3.14"),
                     args=["-m", "awslabs.aws_documentation_mcp_server.server"],
                     env=env,
                 )

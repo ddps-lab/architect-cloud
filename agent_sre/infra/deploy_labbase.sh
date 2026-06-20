@@ -54,7 +54,7 @@ cat <<EOF
    Lambda → Layers → Create layer → Upload a file from Amazon S3
 
    Amazon S3 링크 URL : https://${SHARED_BUCKET}.s3.${REGION}.amazonaws.com/copilot/layer.zip
-   호환 런타임         : Python 3.12
+   호환 런타임         : Python 3.14
 
    만든 레이어의 ARN(=DepsLayerArn)을 에이전트 Lambda 에 추가하세요.
 EOF
