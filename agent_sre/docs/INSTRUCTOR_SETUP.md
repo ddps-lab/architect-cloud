@@ -40,21 +40,23 @@ cd architect-cloud/agent_sre
 (리전 `ap-northeast-2`, 버킷 `samsung-cloud-architect`). 마지막 스텝이 4개 산출물의
 S3 존재·크기를 검증합니다.
 
-## 1. 공유 채팅 웹 배포 (전역 1회)
+## 1. 공유 채팅 웹 배포 (전역 1회, Terraform)
 
 정적 채팅 SPA를 한 벌만 배포하고, 그 URL을 모든 수강생에게 공유합니다. 수강생은
-각자 자신의 에이전트 Function URL을 화면 ⚙︎설정에 입력해서 씁니다.
-
-**CloudShell**(서울 리전)에서:
+각자 자신의 에이전트 Function URL을 화면 ⚙︎설정에 입력해서 씁니다. S3(서울) +
+CloudFront + 커스텀 도메인(`sre-agent-lab.ddps.cloud`)으로 구성됩니다.
 
 ```sh
 git clone https://github.com/ddps-lab/architect-cloud.git
-cd architect-cloud/agent_sre
-./web-chat/deploy_chat.sh            # copilot-chat-web 스택 생성 + SPA 업로드
-# 출력된 "채팅 사이트" URL 을 수강생에게 공유
+cd architect-cloud/agent_sre/web-chat/terraform
+terraform init
+terraform apply        # S3+CloudFront+Route53, SPA 업로드까지 한 번에
+# 출력 chat_site_url 을 수강생에게 공유: https://sre-agent-lab.ddps.cloud
 ```
 
-> 수강생 개별 배포 대상이 아닙니다. 한 번만 만들면 됩니다.
+> - ACM 인증서는 기존 `*.ddps.cloud` 와일드카드(us-east-1)를 데이터 소스로 재사용합니다.
+> - 도메인을 바꾸려면 `terraform apply -var domain_name=... -var zone_name=...`.
+> - 수강생 개별 배포 대상이 아닙니다. 한 번만 만들면 됩니다.
 
 ## 2. 수강생에게 안내할 것
 
@@ -71,7 +73,7 @@ cd architect-cloud/agent_sre
 | 구분 | 누가 | 무엇 |
 |------|------|------|
 | **공유 산출물(injector.zip·layer.zip) 빌드·발행** | 강사(1회) | `infra/publish_artifacts.sh` → `samsung-cloud-architect` |
-| 공유 채팅 웹 | 강사(1회) | S3+CloudFront SPA (`web-chat/`) |
+| 공유 채팅 웹 | 강사(1회) | S3+CloudFront SPA + 커스텀 도메인 (`web-chat/terraform/`) |
 | coffee-serverless | 수강생(각자) | 대상 서비스 + RDS |
 | LabBase (injector·IAM 역할·세션버킷) | 수강생(각자, CF) | `infra/deploy_labbase.sh` (injector 는 공유 버킷 직접 참조) |
 | **의존성 레이어** | **수강생(직접, 콘솔)** | 공유 버킷 layer.zip S3 링크로 레이어 생성 |

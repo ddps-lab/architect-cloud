@@ -258,7 +258,7 @@ Resources:
             apt install nodejs unzip wget npm mysql-client tree nmap -y
             cd /home/ubuntu
             git clone https://github.com/ddps-lab/architect-cloud.git
-            cd architect-cloud/2025/monolithic_code
+            cd architect-cloud/monolithic_code
             npm install
 
             mysql -u admin -plab-password -h ${MySQLDBInstance.Endpoint.Address} -P 3306 -e \
@@ -284,15 +284,15 @@ Resources:
                 PRIMARY KEY (id)
             );"
 
-            sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/monolithic_code/app/config/config.js
-            sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/microservice/customer/app/config/config.js
-            sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/2025/microservice/employee/app/config/config.js
+            sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/monolithic_code/app/config/config.js
+            sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/legacy/backend/microservice/customer/app/config/config.js
+            sed -i "s|REPLACE-DB-HOST|${MySQLDBInstance.Endpoint.Address}|g" /home/ubuntu/architect-cloud/legacy/backend/microservice/employee/app/config/config.js
 
             node index.js &
 
             cat <<EOF > /etc/rc.local
             #!/bin/bash
-            cd /home/ubuntu/architect-cloud/2025/monolithic_code/
+            cd /home/ubuntu/architect-cloud/monolithic_code/
             node index.js
             EOF
             chmod +x /etc/rc.local

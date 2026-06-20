@@ -1,0 +1,16 @@
+# Terraform 상태/로컬 산출물 — 민감정보(ARN·계정ID 등) 포함되므로 커밋 금지
+.terraform/
+.terraform.tfstate.lock.info
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# 단, 프로바이더 잠금 파일은 커밋 (재현성). 민감정보 아님.
+!.terraform.lock.hcl

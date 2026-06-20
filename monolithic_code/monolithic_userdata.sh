@@ -4,7 +4,7 @@ snap install aws-cli --classic
 apt install nodejs unzip wget npm mysql-client tree nmap -y
 cd /home/ubuntu
 git clone https://github.com/ddps-lab/architect-cloud.git
-cd /home/ubuntu/architect-cloud/2025
+cd /home/ubuntu/architect-cloud
 chown ubuntu -R monolithic_code/
 cd monolithic_code
 npm install
@@ -37,7 +37,7 @@ mysql -u admin -plab-password -h ${RDS_DB_EP} -P 3306 -e "
         PRIMARY KEY (id)
     );"
 #sed the config file
-sed -i "s|REPLACE-DB-HOST|${RDS_DB_EP}|g" /home/ubuntu/architect-cloud/2025/monolithic_code/app/config/config.js
+sed -i "s|REPLACE-DB-HOST|${RDS_DB_EP}|g" /home/ubuntu/architect-cloud/monolithic_code/app/config/config.js
 sleep 2
 
 #start the app
@@ -46,7 +46,7 @@ node index.js &
 #ensure app starts at boot for all lab sessions
 cat <<EOF > /etc/rc.local
 #!/bin/bash
-cd /home/ubuntu/architect-cloud/2025/monolithic_code/
+cd /home/ubuntu/architect-cloud/monolithic_code/
 sudo node index.js
 EOF
 chmod +x /etc/rc.local
