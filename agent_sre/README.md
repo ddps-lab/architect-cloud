@@ -30,7 +30,7 @@ danluu 회고 모음을 지식베이스로 삼아, **하나의 AWS Strands 에�
 | 구분 | 누가 | 방법 |
 |------|------|------|
 | 공유 산출물(injector.zip·layer.zip) | 강사 (전역 1회) | `infra/publish_artifacts.sh` → `samsung-cloud-architect` |
-| 공유 채팅 웹 | 강사 (전역 1회) | `web-chat/deploy_chat.sh` |
+| 공유 채팅 웹 | 강사 (전역 1회) | `web-chat/terraform/` (Terraform) |
 | coffee-serverless (대상+RDS) | 수강생 (각자) | `../cloudformation/ServerlessApp_CF.yaml` |
 | LabBase: 장애주입·IAM 역할·세션버킷 | 수강생 (각자, CF 1회) | `infra/deploy_labbase.sh` |
 | **의존성 레이어** | **수강생 (직접, 콘솔)** | 공유 버킷 layer.zip S3 링크로 생성 |
@@ -54,7 +54,7 @@ agent_sre/
 │   └── build_function_zip.sh  function.zip(lambda_src) 생성
 ├── kb/                  setup_s3vectors.sh, ingest_danluu.py, data/(회고 20건)
 ├── faults/              inject.sh / restore.sh / injector_lambda/
-├── web-chat/            공유 채팅 SPA + ChatWeb_CF.yaml + deploy_chat.sh
+├── web-chat/            공유 채팅 SPA(index.html·app.js·style.css) + terraform/
 └── docs/                STUDENT_GUIDE.md, INSTRUCTOR_SETUP.md
 
 ../cloudformation/
