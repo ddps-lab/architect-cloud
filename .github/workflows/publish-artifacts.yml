@@ -14,6 +14,7 @@ on:
       - 'agent_sre/requirements.txt'
       - 'agent_sre/faults/injector_lambda/**'
       - 'agent_sre/infra/publish_artifacts.sh'
+      - 'agent_sre/infra/LabBase_CF.yaml'
       - 'lambda_code/microservice/**'
       - '.github/workflows/publish-artifacts.yml'
 

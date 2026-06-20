@@ -44,28 +44,29 @@ cd architect-cloud/agent_sre
 
 ---
 
-## 1. 부품 배포 (CF, 1회) — `deploy_labbase.sh`
+## 1. 부품 배포 (CloudFormation, 1회, 콘솔)
 
-장애 주입 Lambda(내 RDS 대상) + 에이전트 IAM 역할 + 세션 버킷을 한 번에 만듭니다.
-장애 주입 코드(injector.zip)는 강사가 미리 올려둔 공유 버킷
-(`samsung-cloud-architect`)에서 CF가 **직접 참조**하므로, 빌드도 복사도 없습니다
-(CloudShell 부담 없음).
+장애 주입 Lambda(내 RDS 대상) + 에이전트 IAM 역할·관리형 정책 + 세션 버킷을
+한 번에 만듭니다. VPC/RDS 배선(서브넷·SG·DB엔드포인트)은 `coffee-serverless`
+스택의 Export 에서 **자동으로 가져오므로 입력할 값이 없습니다**. 코드(injector.zip)도
+공유 버킷에서 직접 참조하므로 빌드/복사도 없습니다.
 
-```sh
-cd agent_sre
-./infra/deploy_labbase.sh
-```
+**콘솔에서:**
+1. **CloudFormation 콘솔 → Create stack → With new resources**
+2. Template source: **Amazon S3 URL** 선택 후 붙여넣기:
+   `https://samsung-cloud-architect.s3.ap-northeast-2.amazonaws.com/copilot/LabBase_CF.yaml`
+3. Stack name: `copilot-labbase`
+4. Parameters: **그대로 둠** (전부 기본값 — coffee 스택명이 `coffee-serverless` 가
+   아니면 `CoffeeStackName` 만 바꿉니다)
+5. 다음 화면에서 **"I acknowledge that AWS CloudFormation might create IAM resources
+   with custom names"** 체크 → Create stack
+6. 생성 완료 후 **Outputs** 탭에서 다음을 메모하세요:
+   - `AgentRoleArn` — 에이전트 Lambda 실행 역할
+   - `LwaLayerArn` — Lambda Web Adapter 레이어
+   - `SessionBucketName` — env `SESSION_BUCKET`
+   - `InjectorFunctionName` — env `INJECTOR_FN` (보통 `coffee-fault-injector`)
 
-> 강사가 알려준 공유 버킷명이 기본값과 다르면 앞에 붙여 실행하세요:
-> `SHARED_BUCKET=<강사가 알려준 버킷> ./infra/deploy_labbase.sh`
-
-끝나면 출력 표에서 다음을 메모하세요:
-- `AgentRoleArn` — 에이전트 Lambda 실행 역할
-- `LwaLayerArn` — Lambda Web Adapter 레이어
-- `SessionBucketName` — env `SESSION_BUCKET`
-- `InjectorFunctionName` — env `INJECTOR_FN` (보통 `coffee-fault-injector`)
-
-또한 스크립트 마지막에 안내되는 **layer.zip 의 S3 링크 URL** 을 메모합니다(다음 단계).
+> CLI 가 편하면 대신 `./infra/deploy_labbase.sh` 한 줄로도 됩니다(같은 결과).
 
 ---
 

@@ -1,22 +1,12 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  SRE Incident Copilot — LAB BASE (미리 배포되는 부품).
-  각 수강생이 자신의 환경에 1회 배포합니다. 장애 주입 Lambda(자기 RDS 대상),
-  에이전트가 붙일 IAM 역할, 세션(기억) 버킷을 만듭니다.
-  ※ 의존성 레이어는 학생이 콘솔에서 공유 버킷(samsung-cloud-architect) layer.zip
-  S3 링크로 직접 생성합니다. 핵심 실습(S3 Vectors / Knowledge Base / 에이전트 Lambda)
-  도 학생이 직접 콘솔에서 만듭니다 — 이 템플릿에 포함되지 않습니다.
-  web-chat 도 별도(전역 1회)입니다.
+  SRE Incident Copilot — LAB BASE
 
 Parameters:
-  PrivateSubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: coffee-serverless 프라이빗 서브넷 (injector가 RDS에 닿기 위함)
-  LambdaSecurityGroupId:
-    Type: AWS::EC2::SecurityGroup::Id
-    Description: coffee-serverless LambdaSG (RDS SG에 이미 허용됨)
-  DbHost:
+  CoffeeStackName:
     Type: String
+    Default: coffee-serverless
+    Description: VPC/RDS 를 만든 coffee 스택 이름 (서브넷·SG·DB엔드포인트를 Export 에서 가져옴)
   DbUser:
     Type: String
     Default: nodeapp
@@ -27,13 +17,10 @@ Parameters:
   DbName:
     Type: String
     Default: COFFEE
-  CodeBucket:
-    Type: String
-    Description: 정규 coffee 빌드(customer.zip/employee.zip)가 있는 버킷 (재배포 도구용)
   ArtifactsBucket:
     Type: String
     Default: samsung-cloud-architect
-    Description: 공유 산출물(injector.zip / layer.zip)이 있는 루트 계정 버킷
+    Description: 공유 산출물(injector.zip / layer.zip / 깨끗한 coffee zip)이 있는 버킷
   InjectorCodeKey:
     Type: String
     Default: copilot/injector.zip
@@ -82,14 +69,67 @@ Resources:
         S3Key: !Ref InjectorCodeKey
       VpcConfig:
         SecurityGroupIds:
-          - !Ref LambdaSecurityGroupId
-        SubnetIds: !Ref PrivateSubnetIds
+          - Fn::ImportValue: !Sub ${CoffeeStackName}-LambdaSecurityGroup
+        SubnetIds:
+          - Fn::ImportValue: !Sub ${CoffeeStackName}-PrivateSubnet1
+          - Fn::ImportValue: !Sub ${CoffeeStackName}-PrivateSubnet2
       Environment:
         Variables:
-          APP_DB_HOST: !Ref DbHost
+          APP_DB_HOST:
+            Fn::ImportValue: !Sub ${CoffeeStackName}-DBInstanceEndpoint
           APP_DB_USER: !Ref DbUser
           APP_DB_PASSWORD: !Ref DbPassword
           APP_DB_NAME: !Ref DbName
+
+  ###########
+  # 에이전트 권한 (관리형 정책) — 인라인 Policies 대신 별도 ManagedPolicy 로 분리
+  ###########
+  AgentManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub copilot-agent-${AWS::Region}
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          # Bedrock 모델 호출 + KB 검색 (KB는 학생이 만드므로 Resource * — 랩 한정)
+          - Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
+              - bedrock:Retrieve
+            Resource: "*"
+          # 진단: coffee 서비스 로그 읽기
+          - Effect: Allow
+            Action:
+              - logs:FilterLogEvents
+              - logs:GetLogEvents
+              - logs:DescribeLogStreams
+            Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/coffee-*
+          # 복구: injector 호출 + coffee 함수 재배포
+          - Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource: !GetAtt InjectorFunction.Arn
+          - Effect: Allow
+            Action:
+              - lambda:UpdateFunctionCode
+              - lambda:GetFunction
+              - lambda:GetFunctionConfiguration
+            Resource:
+              - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-customer
+              - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-employee
+          - Effect: Allow
+            Action: s3:GetObject
+            Resource: !Sub arn:aws:s3:::${ArtifactsBucket}/*
+          # 기억: 세션 버킷
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+            Resource:
+              - !GetAtt SessionBucket.Arn
+              - !Sub ${SessionBucket.Arn}/*
 
   ###########
   # 에이전트 IAM 역할 — 학생이 만든 에이전트 Lambda 에 붙입니다
@@ -107,50 +147,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: copilot-agent
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              # Bedrock 모델 호출 + KB 검색 (KB는 학생이 만드므로 Resource * — 랩 한정)
-              - Effect: Allow
-                Action:
-                  - bedrock:InvokeModel
-                  - bedrock:InvokeModelWithResponseStream
-                  - bedrock:Retrieve
-                Resource: "*"
-              # 진단: coffee 서비스 로그 읽기
-              - Effect: Allow
-                Action:
-                  - logs:FilterLogEvents
-                  - logs:GetLogEvents
-                  - logs:DescribeLogStreams
-                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/coffee-*
-              # 복구: injector 호출 + coffee 함수 재배포
-              - Effect: Allow
-                Action: lambda:InvokeFunction
-                Resource: !GetAtt InjectorFunction.Arn
-              - Effect: Allow
-                Action:
-                  - lambda:UpdateFunctionCode
-                  - lambda:GetFunction
-                  - lambda:GetFunctionConfiguration
-                Resource:
-                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-customer
-                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:coffee-employee
-              - Effect: Allow
-                Action: s3:GetObject
-                Resource: !Sub arn:aws:s3:::${CodeBucket}/*
-              # 기억: 세션 버킷
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:DeleteObject
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt SessionBucket.Arn
-                  - !Sub ${SessionBucket.Arn}/*
+        - !Ref AgentManagedPolicy
 
 Outputs:
   AgentRoleArn:

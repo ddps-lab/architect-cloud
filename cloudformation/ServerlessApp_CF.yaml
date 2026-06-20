@@ -519,6 +519,23 @@ Outputs:
   DBInstanceEndpoint:
     Description: RDS MySQL endpoint
     Value: !GetAtt MyDBInstance.Endpoint.Address
+    Export:
+      Name: !Sub ${AWS::StackName}-DBInstanceEndpoint
+  PrivateSubnet1Id:
+    Description: Private subnet 1 (for in-VPC Lambdas like the fault injector)
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet1
+  PrivateSubnet2Id:
+    Description: Private subnet 2
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet2
+  LambdaSecurityGroupId:
+    Description: Lambda SG (already allowed into the RDS SG)
+    Value: !Ref LambdaSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-LambdaSecurityGroup
   CustomerApiUrl:
     Description: Customer API base URL (use as YOUR_API_URL for s3_customer)
     Value: !GetAtt CustomerApi.ApiEndpoint
