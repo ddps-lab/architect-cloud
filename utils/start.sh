@@ -4,7 +4,7 @@ apt install nodejs unzip wget npm mysql-server tree nmap -y
 snap install --classic aws-cli
 cd /home/ubuntu
 git clone https://github.com/ddps-lab/architect-cloud.git
-cd /home/ubuntu/architect-cloud/legacy/backend
+cd /home/ubuntu/architect-cloud
 chown ubuntu -R monolithic_code/
 cd monolithic_code
 npm install
@@ -46,7 +46,7 @@ node index.js &
 
 cat <<EOF > /etc/rc.local
 #!/bin/bash
-cd /home/ubuntu/architect-cloud/legacy/backend/monolithic_code
+cd /home/ubuntu/architect-cloud/monolithic_code
 TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
 export APP_DB_HOST=$(curl http://169.254.169.254/latest/meta-data/local-ipv4 -H "X-aws-ec2-metadata-token: $TOKEN")
 export APP_DB_USER=nodeapp

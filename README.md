@@ -11,7 +11,7 @@
 
 | 단계 | 주제 | 디렉터리 |
 |------|------|----------|
-| 1 | 모놀리식 애플리케이션 (EC2) | [`legacy/backend/monolithic_code/`](legacy/backend/monolithic_code/) |
+| 1 | 모놀리식 애플리케이션 (EC2) | [`monolithic_code/`](monolithic_code/) |
 | 2 | 마이크로서비스 분리 (customer / employee, EC2) | [`legacy/backend/microservice/`](legacy/backend/microservice/) |
 | 3 | 컨테이너 & 쿠버네티스 / EKS (HPA·Karpenter·ALB) | [`legacy/kubernetes/2025/`](legacy/kubernetes/2025/) |
 | 4 | 서버리스 (Lambda + API Gateway + S3 + CloudFront) | [`cloudformation/`](cloudformation/), [`lambda_code/`](lambda_code/) |
@@ -20,8 +20,8 @@
 
 ## 디렉터리 안내
 
-- **`legacy/backend/monolithic_code/` · `legacy/backend/microservice/`** — EC2 기반
-  모놀리식/마이크로서비스 앱 (MSA_CF·HighAvailability_CF 가 부팅하는 소스).
+- **`monolithic_code/`** — EC2 기반 모놀리식 앱 (MSA_CF·HighAvailability_CF 가 부팅하는 소스).
+- **`legacy/backend/microservice/`** — EC2 기반 마이크로서비스(customer/employee) 코드 (legacy).
 - **`legacy/kubernetes/2025/`** — Deployment·Service·Ingress·HPA·Karpenter 등 EKS 실습 매니페스트.
 - **`lambda_code/`** — 모놀리식 / 마이크로서비스 버전의 Lambda 핸들러 코드.
 - **`cloudformation/`** — 인프라 IaC 템플릿

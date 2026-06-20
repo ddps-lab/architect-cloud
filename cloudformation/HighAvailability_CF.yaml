@@ -401,15 +401,15 @@ Resources:
                       PRIMARY KEY (id)
                   );"
 
-              sed -i "s|REPLACE-DB-HOST|${!RDS_DB_EP}|g" /home/ubuntu/architect-cloud/legacy/backend/monolithic_code/app/config/config.js
+              sed -i "s|REPLACE-DB-HOST|${!RDS_DB_EP}|g" /home/ubuntu/architect-cloud/monolithic_code/app/config/config.js
               sleep 2
 
-              cd /home/ubuntu/architect-cloud/legacy/backend/monolithic_code
+              cd /home/ubuntu/architect-cloud/monolithic_code
               node index.js > /var/log/app.log 2>&1 &
 
               cat <<EOF > /etc/rc.local
               #!/bin/bash
-              cd /home/ubuntu/architect-cloud/legacy/backend/monolithic_code/
+              cd /home/ubuntu/architect-cloud/monolithic_code/
               sudo node index.js
               EOF
               chmod +x /etc/rc.local
