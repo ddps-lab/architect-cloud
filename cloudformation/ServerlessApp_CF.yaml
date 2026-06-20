@@ -515,6 +515,93 @@ Resources:
               StringEquals:
                 AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${EmployeeDistribution}
 
+  ###########
+  # 스택 삭제 시 프론트엔드 버킷 자동 비우기 (custom resource)
+  # → 버킷이 비어있지 않아 DeleteStack 이 실패하는 문제 방지
+  ###########
+  BucketCleanupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: empty-frontend-buckets
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:ListBucketVersions
+                Resource:
+                  - !GetAtt CustomerBucket.Arn
+                  - !GetAtt EmployeeBucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:DeleteObjectVersion
+                Resource:
+                  - !Sub ${CustomerBucket.Arn}/*
+                  - !Sub ${EmployeeBucket.Arn}/*
+
+  BucketCleanupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-bucket-cleanup
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 120
+      MemorySize: 128
+      Role: !GetAtt BucketCleanupRole.Arn
+      Code:
+        ZipFile: |
+          import json, boto3
+          from urllib.request import Request, urlopen
+
+          def send(event, context, status, reason=""):
+              body = json.dumps({
+                  "Status": status,
+                  "Reason": reason or "see CloudWatch log " + context.log_stream_name,
+                  "PhysicalResourceId": event.get("PhysicalResourceId", context.log_stream_name),
+                  "StackId": event["StackId"],
+                  "RequestId": event["RequestId"],
+                  "LogicalResourceId": event["LogicalResourceId"],
+                  "Data": {},
+              }).encode()
+              req = Request(event["ResponseURL"], data=body, method="PUT",
+                            headers={"content-type": "", "content-length": str(len(body))})
+              urlopen(req)
+
+          def handler(event, context):
+              try:
+                  if event["RequestType"] == "Delete":
+                      bucket = event["ResourceProperties"]["BucketName"]
+                      boto3.resource("s3").Bucket(bucket).object_versions.delete()
+                  send(event, context, "SUCCESS")
+              except Exception as e:
+                  # 삭제를 막지 않도록 best-effort 로 SUCCESS 보고
+                  print("cleanup error:", e)
+                  send(event, context, "SUCCESS", reason=str(e))
+
+  CustomerBucketCleanup:
+    Type: Custom::EmptyBucket
+    Properties:
+      ServiceToken: !GetAtt BucketCleanupFunction.Arn
+      BucketName: !Ref CustomerBucket
+
+  EmployeeBucketCleanup:
+    Type: Custom::EmptyBucket
+    Properties:
+      ServiceToken: !GetAtt BucketCleanupFunction.Arn
+      BucketName: !Ref EmployeeBucket
+
 Outputs:
   DBInstanceEndpoint:
     Description: RDS MySQL endpoint

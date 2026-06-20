@@ -222,5 +222,12 @@ curl -s <FunctionURL>            # {"ok":true}
 aws s3 rm s3://<KB_BUCKET> --recursive
 aws s3vectors delete-index --vector-bucket-name <vec-bucket> --index-name postmortems
 aws s3vectors delete-vector-bucket --vector-bucket-name <vec-bucket>
+# LabBase : 콘솔 CloudFormation 에서 copilot-labbase 스택 삭제 (또는 CLI)
 aws cloudformation delete-stack --stack-name copilot-labbase
+# coffee-serverless : 콘솔/CLI 로 스택 삭제 — 프론트엔드 버킷은 자동으로 비워짐
+aws cloudformation delete-stack --stack-name coffee-serverless
 ```
+
+> `coffee-serverless` 의 프론트엔드 버킷(`coffee-customer-*` / `coffee-employee-*`)은
+> 스택에 포함된 자동 비우기 리소스가 삭제 시 비워주므로, 따로 `s3 rm` 할 필요가
+> 없습니다. (KB/벡터 버킷은 직접 만든 것이라 위처럼 수동 정리)
