@@ -5,10 +5,14 @@
 """
 import os
 
+import boto3
 from strands.session.s3_session_manager import S3SessionManager
 
 REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
-SESSION_BUCKET = os.environ.get("SESSION_BUCKET")
+# 세션 버킷은 AgentBase 가 copilot-sessions-{account}-{region} 로 고정 생성하므로
+# 계정 ID로 유도(환경변수 불필요). 굳이 다른 버킷을 쓰려면 SESSION_BUCKET 로 덮어쓰기.
+_ACCOUNT = boto3.client("sts").get_caller_identity()["Account"]
+SESSION_BUCKET = os.environ.get("SESSION_BUCKET") or f"copilot-sessions-{_ACCOUNT}-{REGION}"
 
 
 def memory(session_id: str):

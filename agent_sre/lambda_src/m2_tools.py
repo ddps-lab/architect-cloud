@@ -29,14 +29,17 @@ _API = {
     "customer": os.environ.get("COFFEE_CUSTOMER_API", ""),
     "employee": os.environ.get("COFFEE_EMPLOYEE_API", ""),
 }
+# 실습 내내 고정되는 값들 — 코드에 박음(환경변수 불필요)
 _FN = {
-    "customer": os.environ.get("COFFEE_CUSTOMER_FN", "coffee-customer"),
-    "employee": os.environ.get("COFFEE_EMPLOYEE_FN", "coffee-employee"),
+    "customer": "coffee-customer",
+    "employee": "coffee-employee",
 }
 _CLEAN_KEY = {
-    "customer": os.environ.get("CUSTOMER_CLEAN_KEY", "coffee/customer.zip"),
-    "employee": os.environ.get("EMPLOYEE_CLEAN_KEY", "coffee/employee.zip"),
+    "customer": "coffee/customer.zip",
+    "employee": "coffee/employee.zip",
 }
+INJECTOR_FN = "coffee-fault-injector"
+CODE_BUCKET = "samsung-cloud-architect"
 
 
 @tool
@@ -95,7 +98,7 @@ def run_sql(statement: str) -> str:
     Args:
         statement: 실행할 단일 SQL 문.
     """
-    injector = os.environ.get("INJECTOR_FN", "coffee-fault-injector")
+    injector = INJECTOR_FN
     r = _lambda.invoke(FunctionName=injector, Payload=json.dumps({"action": "run_sql", "sql": statement}).encode())
     return r["Payload"].read().decode("utf-8", "replace")
 
@@ -108,12 +111,10 @@ def redeploy_service(service: str) -> str:
     Args:
         service: "customer" 또는 "employee".
     """
-    bucket = os.environ.get("CODE_BUCKET")
+    bucket = CODE_BUCKET
     fn = _FN.get(service)
     if not fn:
         return f"unknown service '{service}'"
-    if not bucket:
-        return "CODE_BUCKET not configured."
     _lambda.update_function_code(FunctionName=fn, S3Bucket=bucket, S3Key=_CLEAN_KEY[service])
     _lambda.get_waiter("function_updated").wait(FunctionName=fn)
     return f"redeployed canonical build to {fn}"

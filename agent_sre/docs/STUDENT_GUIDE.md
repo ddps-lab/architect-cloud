@@ -143,23 +143,21 @@ CloudShell에서 만든 `function.zip` 을 콘솔에 올리려면 내 PC로 내�
 
 ### 4-5. 환경변수 (Configuration → Environment variables)
 
+배포마다 달라지는 값만 넣습니다. 나머지(서비스 함수명·정리 키·injector·코드버킷·
+세션버킷)는 코드에 박혀 있어 설정할 필요가 없습니다.
+
 | Key | Value |
 |-----|-------|
-| `AWS_LAMBDA_EXEC_WRAPPER` | `/opt/bootstrap` |
-| `AWS_LWA_INVOKE_MODE` | `response_stream` |
-| `PORT` | `8000` |
+| `AWS_LAMBDA_EXEC_WRAPPER` | `/opt/bootstrap` (LWA) |
+| `AWS_LWA_INVOKE_MODE` | `response_stream` (LWA) |
+| `PORT` | `8000` (LWA) |
 | `MODEL_ID` | `global.anthropic.claude-sonnet-4-6` (또는 사용 모델 추론 프로파일) |
-| `BEDROCK_REGION` | `ap-northeast-2` |
-| `KB_ID` | (3번에서 메모한 Knowledge base ID) |
-| `SESSION_BUCKET` | (1번 `SessionBucketName`) |
-| `INJECTOR_FN` | `coffee-fault-injector` |
+| `KB_ID` | (3번에서 메모한 Knowledge base ID, 모듈 4부터) |
 | `COFFEE_CUSTOMER_API` | coffee-serverless 출력 `CustomerApiUrl` |
 | `COFFEE_EMPLOYEE_API` | coffee-serverless 출력 `EmployeeApiUrl` |
-| `COFFEE_CUSTOMER_FN` | `coffee-customer` |
-| `COFFEE_EMPLOYEE_FN` | `coffee-employee` |
-| `CODE_BUCKET` | `samsung-cloud-architect` (공유 버킷) |
-| `CUSTOMER_CLEAN_KEY` | `coffee/customer.zip` |
-| `EMPLOYEE_CLEAN_KEY` | `coffee/employee.zip` |
+
+> 선택: 모델 호출을 다른 리전으로 보내려면 `BEDROCK_REGION`, 세션 버킷을 기본
+> (`copilot-sessions-<account>-<region>`)이 아닌 것으로 쓰려면 `SESSION_BUCKET` 만 추가.
 
 > coffee API 주소: `aws cloudformation describe-stacks --stack-name coffee-serverless
 > --query "Stacks[0].Outputs"` 에서 확인.
