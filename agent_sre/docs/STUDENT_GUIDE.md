@@ -150,11 +150,12 @@ CloudShell에서 만든 `function.zip` 을 콘솔에 올리려면 내 PC로 내�
 |-----|-------|
 | `AWS_LAMBDA_EXEC_WRAPPER` | `/opt/bootstrap` (LWA) |
 | `AWS_LWA_INVOKE_MODE` | `response_stream` (LWA) |
-| `MODEL_ID` | `global.anthropic.claude-sonnet-4-6` (또는 사용 모델 추론 프로파일) |
 | `KB_ID` | (3번에서 메모한 Knowledge base ID, 모듈 4부터) |
 | `COFFEE_CUSTOMER_API` | coffee-serverless 출력 `CustomerApiUrl` |
 | `COFFEE_EMPLOYEE_API` | coffee-serverless 출력 `EmployeeApiUrl` |
 
+> 모델 기본값은 `global.anthropic.claude-sonnet-4-6` 입니다(코드 내장). 다른 모델을
+> 쓰려면 `MODEL_ID` 만 추가하세요.
 > 선택: 모델 호출을 다른 리전으로 보내려면 `BEDROCK_REGION`, 세션 버킷을 기본
 > (`copilot-sessions-<account>-<region>`)이 아닌 것으로 쓰려면 `SESSION_BUCKET` 만 추가.
 

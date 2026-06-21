@@ -7,7 +7,7 @@ import os
 
 from strands.models import BedrockModel
 
-MODEL_ID = os.environ.get("MODEL_ID", "apac.amazon.nova-micro-v1:0")
+MODEL_ID = os.environ.get("MODEL_ID", "global.anthropic.claude-sonnet-4-6")
 REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
 # 모델 호출만 다른 리전으로 보낼 수 있음(로그/람다/KB는 스택 리전 유지).
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", REGION)
