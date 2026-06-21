@@ -34,6 +34,10 @@ def build_agent(session_id):
         #   아래 한 줄의 # 을 지우면 로그 조회·스모크테스트·복구 도구가 켜집니다.
         # tools=m2_tools.ALL,
 
+        # ── 모듈 3: 기억(메모리) 붙이기 (m3_memory.py) ──────────────────
+        #   아래 한 줄의 # 을 지우면 이전 대화를 기억합니다.
+        # session_manager=m3_memory.memory(session_id),
+
         # ── 모듈 4: 회고 지식베이스 검색 추가 (m4_knowledge_base.py) ──────
         #   위 "tools=m2_tools.ALL," 줄을 지우고, 대신 아래 줄의 # 을 지우세요.
         # tools=m2_tools.ALL + [m4_knowledge_base.search],
@@ -41,9 +45,5 @@ def build_agent(session_id):
         # ── 모듈 5: AWS 공식문서(MCP) 추가 (m5_aws_docs.py) ──────────────
         #   위 tools 줄을 지우고, 대신 아래 줄의 # 을 지우세요.
         # tools=m2_tools.ALL + [m4_knowledge_base.search] + m5_aws_docs.load(),
-
-        # ── 모듈 3: 기억(메모리) 붙이기 (m3_memory.py) ──────────────────
-        #   아래 한 줄의 # 을 지우면 이전 대화를 기억합니다.
-        # session_manager=m3_memory.memory(session_id),
     )
     return agent
