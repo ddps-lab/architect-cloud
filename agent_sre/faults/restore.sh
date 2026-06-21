@@ -22,7 +22,8 @@ invoke_injector() {
 }
 
 redeploy_clean() {
-  local svc="$1" fn="coffee-$svc"
+  local svc="$1"
+  local fn="coffee-$svc"
   local work; work="$(mktemp -d)"
   cp -r "$SRC/$svc/." "$work/"
   ( cd "$work" && npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 )
