@@ -150,7 +150,6 @@ CloudShell에서 만든 `function.zip` 을 콘솔에 올리려면 내 PC로 내�
 |-----|-------|
 | `AWS_LAMBDA_EXEC_WRAPPER` | `/opt/bootstrap` (LWA) |
 | `AWS_LWA_INVOKE_MODE` | `response_stream` (LWA) |
-| `PORT` | `8000` (LWA) |
 | `MODEL_ID` | `global.anthropic.claude-sonnet-4-6` (또는 사용 모델 추론 프로파일) |
 | `KB_ID` | (3번에서 메모한 Knowledge base ID, 모듈 4부터) |
 | `COFFEE_CUSTOMER_API` | coffee-serverless 출력 `CustomerApiUrl` |
