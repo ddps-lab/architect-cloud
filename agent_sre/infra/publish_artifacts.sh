@@ -29,18 +29,37 @@ aws s3api put-public-access-block --bucket "$SHARED_BUCKET" --region "$REGION" \
 aws s3api put-bucket-policy --bucket "$SHARED_BUCKET" --region "$REGION" --policy "$(cat <<JSON
 {
   "Version": "2012-10-17",
-  "Statement": [{
-    "Sid": "PublicReadCopilotArtifacts",
-    "Effect": "Allow",
-    "Principal": "*",
-    "Action": "s3:GetObject",
-    "Resource": [
-      "arn:aws:s3:::${SHARED_BUCKET}/copilot/*",
-      "arn:aws:s3:::${SHARED_BUCKET}/coffee/*",
-      "arn:aws:s3:::${SHARED_BUCKET}/cloudformation/*",
-      "arn:aws:s3:::${SHARED_BUCKET}/frontend/*"
-    ]
-  }]
+  "Statement": [
+    {
+      "Sid": "PublicReadCopilotArtifacts",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": [
+        "arn:aws:s3:::${SHARED_BUCKET}/copilot/*",
+        "arn:aws:s3:::${SHARED_BUCKET}/coffee/*",
+        "arn:aws:s3:::${SHARED_BUCKET}/cloudformation/*",
+        "arn:aws:s3:::${SHARED_BUCKET}/frontend/*"
+      ]
+    },
+    {
+      "Sid": "PublicListCopilotArtifacts",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::${SHARED_BUCKET}",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "copilot/*",
+            "coffee/*",
+            "cloudformation/*",
+            "frontend/*"
+          ]
+        }
+      }
+    }
+  ]
 }
 JSON
 )"
