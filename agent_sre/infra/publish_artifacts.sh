@@ -79,11 +79,14 @@ REPO_ROOT="$(cd "$COPILOT/.." && pwd)"
 aws s3 sync "$REPO_ROOT/s3_customer" "s3://$SHARED_BUCKET/frontend/customer" --delete --region "$REGION" >/dev/null
 aws s3 sync "$REPO_ROOT/s3_employee" "s3://$SHARED_BUCKET/frontend/employee" --delete --region "$REGION" >/dev/null
 
-echo ">> [3/5] injector.zip 빌드 (Node) + CF 템플릿 업로드"
+echo ">> [3/5] injector.zip + function.zip 빌드 + CF 템플릿 업로드"
 INJ="$(mktemp -d)"
 cp -r "$COPILOT/faults/injector_lambda/." "$INJ/"
 ( cd "$INJ" && npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 && zip -qr /tmp/injector.zip . )
 aws s3 cp /tmp/injector.zip "s3://$SHARED_BUCKET/copilot/injector.zip" --region "$REGION"
+# 에이전트 함수 코드(lambda_src) → copilot/function.zip (학생이 콘솔에서 S3 링크로 로드, 빌드·다운로드 불필요)
+( cd "$COPILOT" && rm -f /tmp/function.zip && zip -qr /tmp/function.zip lambda_src -x "*.pyc" "*/__pycache__/*" )
+aws s3 cp /tmp/function.zip "s3://$SHARED_BUCKET/copilot/function.zip" --region "$REGION"
 # 학생이 콘솔에서 'Amazon S3 URL' 로 바로 배포할 수 있게 CF 템플릿 3종을 cloudformation/ 로 발행
 CF_DIR="$(cd "$COPILOT/.." && pwd)/cloudformation"
 for tpl in AgentBase_CF ServerlessApp_CF HighAvailability_CF; do
@@ -99,7 +102,7 @@ rm -rf "$LYR/python"/boto3 "$LYR/python"/botocore "$LYR/python"/boto3-* "$LYR/py
 aws s3 cp /tmp/layer.zip "s3://$SHARED_BUCKET/copilot/layer.zip" --region "$REGION"
 
 echo ">> [5/5] 정리"
-rm -rf "$INJ" "$LYR" /tmp/injector.zip /tmp/layer.zip
+rm -rf "$INJ" "$LYR" /tmp/injector.zip /tmp/function.zip /tmp/layer.zip
 
 cat <<EOF
 
@@ -107,6 +110,7 @@ cat <<EOF
    coffee/customer.zip  coffee/employee.zip   (ServerlessApp_CF Lambda 코드)
    frontend/customer/*  frontend/employee/*   (정적 프론트 소스 — 스택이 자동 발행)
    copilot/injector.zip                       (AgentBase 장애 주입기 코드)
+   copilot/function.zip                       (에이전트 함수 코드 — 콘솔에서 S3 링크로 로드)
    copilot/layer.zip                          (학생이 콘솔에서 레이어로 생성)
    cloudformation/AgentBase_CF.yaml           (콘솔 S3 URL 배포)
    cloudformation/ServerlessApp_CF.yaml       (콘솔 S3 URL 배포)

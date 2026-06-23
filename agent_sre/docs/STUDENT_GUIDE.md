@@ -119,19 +119,16 @@ aws s3 cp kb/data "s3://$KB_BUCKET/danluu/" --recursive   # 20건(.txt + .metada
 
 ## 4. 에이전트 Lambda 만들기 (콘솔, 직접)
 
-### 4-1. 함수 코드 zip
-```sh
-./infra/build_function_zip.sh        # function.zip 생성 (lambda_src 만, 수십 KB)
-```
-CloudShell에서 만든 `function.zip` 을 콘솔에 올리려면 내 PC로 내려받습니다:
-**CloudShell 우측 상단 Actions → Download file → `agent_sre/function.zip`**
-(경로 입력 시 홈 기준 상대경로, 예: `architect-cloud/agent_sre/function.zip`)
+### 4-1. 함수 코드 (공유 버킷에 발행됨 — 빌드·다운로드 불필요)
+에이전트 함수 코드는 강사가 공유 버킷에 올려둡니다. 아래 S3 링크 URL 을 4-2 에서 사용합니다:
+`https://samsung-cloud-architect.s3.ap-northeast-2.amazonaws.com/copilot/function.zip`
 
 ### 4-2. 함수 생성
 - **Lambda 콘솔 → Create function → Author from scratch**
 - Name: `strands-incident-copilot`, Runtime: **Python 3.14**, Arch: **x86_64**
 - **Change default execution role → Use an existing role →** `AgentRoleArn`(1번)
-- Create → **Code → Upload from → .zip** → `function.zip`
+- Create → **Code → Upload from → Amazon S3 location** → 위 `copilot/function.zip` S3 링크 붙여넣기
+  (버킷·함수 모두 `ap-northeast-2` 라 S3 로딩 가능)
 
 ### 4-3. 핸들러·리소스 (Configuration)
 - **Handler**: `lambda_src/run.sh`
