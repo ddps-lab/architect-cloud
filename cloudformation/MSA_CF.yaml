@@ -15,7 +15,7 @@ Resources:
     Properties:
       RoleName: PipelineRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:afpolicy/AmazonEC2ContainerRegistryReadOnly
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
         - arn:aws:iam::aws:policy/AWSCodeCommitFullAccess
         - arn:aws:iam::aws:policy/AWSCodeDeployDeployerAccess
@@ -132,6 +132,7 @@ Resources:
 
   PublicRoute:
     Type: AWS::EC2::Route
+    DependsOn: AttachGateway
     Properties:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
@@ -303,6 +304,8 @@ Resources:
     Type: AWS::EC2::Instance
     DependsOn:
       - AttachGateway
+      - PublicRoute
+      - PublicSubnetRouteAssociation1
       - MySQLDBInstance
     Properties:
       LaunchTemplate:
