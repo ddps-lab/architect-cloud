@@ -15,7 +15,7 @@ Resources:
     Properties:
       RoleName: PipelineRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:afpolicy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
         - arn:aws:iam::aws:policy/AWSCodeCommitFullAccess
         - arn:aws:iam::aws:policy/AWSCodeDeployDeployerAccess
