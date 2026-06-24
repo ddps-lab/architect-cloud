@@ -529,6 +529,41 @@ Resources:
   #    API GW 주소로 치환해 프론트 버킷에 업로드 + CloudFront 무효화
   #  - 삭제: 프론트 버킷 비우기 (버킷이 안 비어 DeleteStack 실패하는 문제 방지)
   ###########
+  FrontendManagerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          # 프론트 소스 읽기 (공유 버킷)
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:ListBucket
+            Resource:
+              - !Sub arn:aws:s3:::${ArtifactsBucket}
+              - !Sub arn:aws:s3:::${ArtifactsBucket}/*
+          # 프론트 버킷 쓰기/비우기
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:ListBucketVersions
+            Resource:
+              - !GetAtt CustomerBucket.Arn
+              - !GetAtt EmployeeBucket.Arn
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:DeleteObjectVersion
+            Resource:
+              - !Sub ${CustomerBucket.Arn}/*
+              - !Sub ${EmployeeBucket.Arn}/*
+          # CloudFront 무효화
+          - Effect: Allow
+            Action: cloudfront:CreateInvalidation
+            Resource: "*"
+
   FrontendManagerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -541,39 +576,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: manage-frontend-buckets
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              # 프론트 소스 읽기 (공유 버킷)
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !Sub arn:aws:s3:::${ArtifactsBucket}
-                  - !Sub arn:aws:s3:::${ArtifactsBucket}/*
-              # 프론트 버킷 쓰기/비우기
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                  - s3:ListBucketVersions
-                Resource:
-                  - !GetAtt CustomerBucket.Arn
-                  - !GetAtt EmployeeBucket.Arn
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                  - s3:DeleteObject
-                  - s3:DeleteObjectVersion
-                Resource:
-                  - !Sub ${CustomerBucket.Arn}/*
-                  - !Sub ${EmployeeBucket.Arn}/*
-              # CloudFront 무효화
-              - Effect: Allow
-                Action: cloudfront:CreateInvalidation
-                Resource: "*"
+        - !Ref FrontendManagerPolicy
 
   FrontendManagerFunction:
     Type: AWS::Lambda::Function
